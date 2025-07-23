@@ -132,6 +132,43 @@ router.get('/session-history', async (req, res) => {
 });
 
 /**
+ * GET /api/analytics/campaign/:campaignId
+ * Get analytics data for a specific campaign
+ */
+router.get('/campaign/:campaignId', async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const userEmail = req.user?.email; // Get user email from auth middleware
+    const analyticsData = await trafficAnalytics.getAnalyticsData([campaignId], userEmail);
+    
+    const campaignData = analyticsData.campaigns[campaignId];
+    if (!campaignData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign not found or no data available'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        campaign: campaignData,
+        overview: analyticsData.overview,
+        timeSeries: analyticsData.timeSeries,
+        sources: analyticsData.sources
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching campaign analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campaign analytics',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/analytics/stats
  * Get quick stats for dashboard
  */
