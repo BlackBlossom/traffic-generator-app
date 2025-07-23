@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+
+@theme {
+  --color-emerald: #86cb92;
+  --color-mint: #71b48d;
+  --color-myrtle: #598185;
+  --color-yinmn: #404e7c;
+  --color-delft: #333762;
+  --color-cadet: #251f47;
+  --color-purple: #260f26;
+}
+
+@font-face {
+  font-family: 'Caldina Regular';
+  src: url('./assets/Fonts/CaldinaRegular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Caldina Medium';
+  src: url('./assets/Fonts/CaldinaMedium.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-caldina {
+  font-family: 'Caldina Regular', serif;
+}
+
+.font-caldina-medium {
+  font-family: 'Caldina Medium', serif;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Base Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    padding: auto;
+  }
+
+  /* Thumb styling for light theme */
+  ::-webkit-scrollbar-thumb {
+    background-color: #404e7c; /* Yinmn Blue */
+    border-radius: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f7f5ff; /* Light Background */
+  }
+
+  /* Dark Mode Styles */
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: #86cb92; /* Emerald */
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: #333762; /* Delft */
+  }
