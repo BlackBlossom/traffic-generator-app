@@ -1,3 +1,4 @@
+require('dotenv').config();
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { KnownDevices } = require('puppeteer');
@@ -269,10 +270,10 @@ async function performClicks(
   }
 }
 
-const PROXY_HOST = 'gw.dataimpulse.com';
-const PROXY_PORT = '823';
-const PROXY_USER = 'b0ac12156e5e63a82bbe';
-const PROXY_PASS = 'c16003108e64d017';
+const PROXY_HOST = process.env.PROXY_HOST || 'gw.dataimpulse.com';
+const PROXY_PORT = process.env.PROXY_PORT || '823';
+const PROXY_USER = process.env.PROXY_USER || 'b0ac12156e5e63a82bbe';
+const PROXY_PASS = process.env.PROXY_PASS || 'c16003108e64d017';
 const PROXY = `${PROXY_HOST}:${PROXY_PORT}`;
 
 async function launchSession(params, sessionId, ws, campaignId = null, userEmail = null) {
