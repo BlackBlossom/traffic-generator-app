@@ -765,7 +765,7 @@ export default function TrafficAnalytics() {
         <StatCard icon={BoltIcon} label="Online Sessions" value={stats.online || 0} gradient="from-[#86cb92]/40 to-[#71b48d]/30" custom={0} />
         <StatCard icon={GlobeAltIcon} label="Total Visits" value={stats.totalVisits || stats.total || 0} gradient="from-[#404e7c]/40 to-[#333762]/30 dark:bg-[#1c1b2f] dark:to-[#333762]/30" custom={1} />
         <StatCard icon={EyeIcon} label="Avg. Duration (s)" value={stats.avgDuration || 0} gradient="from-[#86cb92]/40 to-[#71b48d]/30" custom={2} />
-        <StatCard icon={DevicePhoneMobileIcon} label="Bounces/Total" value={`${stats.bounced || 0}/${stats.total || 0}`} gradient="from-[#404e7c]/40 to-[#333762]/30 dark:bg-[#1c1b2f] dark:to-[#333762]/30" custom={3} />
+        <StatCard icon={DevicePhoneMobileIcon} label="Mobile/Desktop" value={`${stats.mobile || 0}/${stats.desktop || 0}`} gradient="from-[#404e7c]/40 to-[#333762]/30 dark:bg-[#1c1b2f] dark:to-[#333762]/30" custom={3} />
       </motion.div>
 
       {/* No Campaigns Warning */}
@@ -931,7 +931,7 @@ export default function TrafficAnalytics() {
                 </div>
                 <div className="text-center p-3 sm:p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                   <div className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-600">
-                    {analyticsData.sources.referral.reduce((sum, val) => sum + (val || 0), 0)}
+                    {analyticsData.sourcesStats.referral}
                   </div>
                   <div className="text-xs sm:text-sm text-[#598185] dark:text-[#d0d2e5]">Referral</div>
                   <div className="text-xs text-[#598185] dark:text-[#d0d2e5] mt-1">Other Sites</div>

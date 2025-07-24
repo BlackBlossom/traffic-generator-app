@@ -333,7 +333,7 @@ export default function CampaignMonitor({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b border-[#e5e5e5] dark:border-[#333762] gap-3 sm:gap-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <h3 className="text-base sm:text-lg font-semibold text-[#260f26] dark:text-[#86cb92]">
-            {campaignName} Monitor
+            {campaignName}
           </h3>
           <div className="flex flex-wrap items-center gap-2">
             {campaignId && (

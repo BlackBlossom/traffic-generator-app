@@ -1,5 +1,5 @@
 // src/renderer/pages/TrafficSettings.jsx
-import React, { useState, useEffect, Fragment, use } from 'react'
+import React, { useState, useEffect, Fragment, useMemo, useCallback } from 'react'
 import { Listbox, Dialog, Transition } from '@headlessui/react'
 import { useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -64,7 +64,7 @@ const Input = React.forwardRef(({ label, tooltip, ...props }, ref) => (
 ))
 Input.displayName = 'Input'
 
-const Slider = ({ label, value, onChange, max = 100, tooltip }) => (
+const Slider = ({ label, value, onChange, max = 100, tooltip, name }) => (
   <div className="flex flex-col">
     {label && (
       <div className="flex items-center gap-2 mb-1">
@@ -85,6 +85,7 @@ const Slider = ({ label, value, onChange, max = 100, tooltip }) => (
     <div className="flex items-center gap-3">
       <input
         type="range"
+        name={name}
         value={value}
         max={max}
         onChange={onChange}
@@ -95,9 +96,15 @@ const Slider = ({ label, value, onChange, max = 100, tooltip }) => (
   </div>
 )
 
-const Switch = ({ label, checked, onChange }) => (
+const Switch = ({ label, checked, onChange, name }) => (
   <label className="inline-flex items-center gap-2 cursor-pointer">
-    <input type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
+    <input 
+      type="checkbox" 
+      name={name}
+      checked={checked} 
+      onChange={onChange} 
+      className="sr-only" 
+    />
     <span
       className={cn(
         'w-10 h-5 rounded-full p-[2px] flex items-center transition',
@@ -115,10 +122,11 @@ const Switch = ({ label, checked, onChange }) => (
   </label>
 )
 
-const Checkbox = ({ label, checked, onChange }) => (
+const Checkbox = ({ label, checked, onChange, name }) => (
   <label className="inline-flex items-center gap-2 cursor-pointer">
     <input
       type="checkbox"
+      name={name}
       checked={checked}
       onChange={onChange}
       className="w-4 h-4 border rounded bg-white dark:bg-[#1c1b2f] border-[#598185] dark:border-[#86cb92]
@@ -417,33 +425,42 @@ export default function TrafficSettings() {
   const [campaignToDelete, setCampaignToDelete] = useState(null);
   const [stoppingCampaignId, setStoppingCampaignId] = useState(null);
   const [loading, setLoading] = useState(false)
+  const [campaignsLoading, setCampaignsLoading] = useState(true)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const { user } = useUser()
 
+  // Fetch campaigns function - separated for reusability
+  const fetchUserCampaigns = async () => {
+    if (!user || !user.apiKeys?.[0]?.key) {
+      setError("No API key found. Please Regenerate API Key.");
+      setCampaignsLoading(false);
+      return;
+    }
+    setCampaignsLoading(true);
+    try {
+      const result = await getUserCampaigns(user.email, user.apiKeys[0].key);
+      setCampaigns(result);
+      setError('');
+    } catch (err) {
+      setError("Failed to load previous campaigns.");
+    }
+    setCampaignsLoading(false);
+  };
+
+  // Initial load of campaigns - only depends on user
   useEffect(() => {
-    const fetchUserCampaigns = async () => {
-      if (!user || !user.apiKeys?.[0]?.key) {
-        setError("No API key found. Please Regenerate API Key.");
-        return;
-      }
-      setLoading(true);
-      try {
-        const result = await getUserCampaigns(user.email, user.apiKeys[0].key);
-        setCampaigns(result);
-        setError('');
-      } catch (err) {
-        setError("Failed to load previous campaigns.");
-      }
-      setLoading(false);
-    };
     fetchUserCampaigns();
-  }, [user, success]);
+  }, [user]);
   
-  // Categorize campaigns
-  const activeCampaigns = campaigns.filter(c => c.isActive && !c.scheduling);
-  const scheduledCampaigns = campaigns.filter(c => c.scheduling);
-  const previousCampaigns = campaigns.filter(c => !c.isActive && !c.scheduling);
+  // Memoize campaign categories to prevent unnecessary recalculations
+  const { activeCampaigns, scheduledCampaigns, previousCampaigns } = useMemo(() => {
+    return {
+      activeCampaigns: campaigns.filter(c => c.isActive && !c.scheduling),
+      scheduledCampaigns: campaigns.filter(c => c.scheduling),
+      previousCampaigns: campaigns.filter(c => !c.isActive && !c.scheduling)
+    };
+  }, [campaigns]);
   
   useEffect(() => {
     // Try main container first
@@ -456,11 +473,33 @@ export default function TrafficSettings() {
   }, [location.pathname]);
 
   const socials = Object.keys(data.social)
-  const handleChange = (key) => (e) =>
-    setData((d) => ({ ...d, [key]: e.target.value }))
+  
+  // Optimized change handlers - single functions that don't recreate
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setData((d) => ({ ...d, [name]: value }));
+  }, []);
 
-  // Validation (minimal, can expand as needed)
-  const validate = () => {
+  const handleSliderChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setData((d) => ({ ...d, [name]: Number(value) }));
+  }, []);
+
+  const handleCheckboxChange = useCallback((e) => {
+    const { name, checked } = e.target;
+    setData((d) => ({ ...d, [name]: checked }));
+  }, []);
+
+  const handleSocialChange = useCallback((e) => {
+    const { name, checked } = e.target;
+    setData((d) => ({
+      ...d,
+      social: { ...d.social, [name]: checked },
+    }));
+  }, []);
+
+  // Validation function (memoized)
+  const validate = useCallback(() => {
     if (!data.url || !/^https?:\/\/.+/.test(data.url)) return 'Valid URL required'
     if (data.visitDurationMin < 5) return 'Minimum visit duration must be at least 5 seconds'
     if (data.visitDurationMax < 5) return 'Maximum visit duration must be at least 5 seconds'
@@ -473,10 +512,10 @@ export default function TrafficSettings() {
     if (data.desktopPercentage < 0 || data.desktopPercentage > 100) return 'Desktop % must be 0-100'
     if (data.scheduling && (!data.startTime || !data.endTime)) return 'Set start and end time'
     return ''
-  }
+  }, [data])
 
-  // Add campaign
-  const handleSubmit = async (e) => {
+  // Add campaign with optimized state management
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -494,39 +533,41 @@ export default function TrafficSettings() {
       const resp = await createCampaign(user.email, user.apiKeys[0].key, data);
       setSuccess(resp.message || "Campaign created successfully!");
       setData(INITIAL_DATA);
-      // Campaign list will refresh via useEffect dependency on 'success'
+      // Refetch campaigns only after successful creation
+      await fetchUserCampaigns();
     } catch (err) {
       setError("Error creating campaign.");
     }
     setLoading(false);
-  };
+  }, [data, validate, user, fetchUserCampaigns]);
 
-  // Reset form
-  const handleReset = () => {
+  // Reset form with optimized state management
+  const handleReset = useCallback(() => {
     setData(INITIAL_DATA)
     setError('')
     setSuccess('')
-  }
+  }, [])
 
-  const openDeleteDialog = (id) => {
+  // Optimized delete dialog handlers
+  const openDeleteDialog = useCallback((id) => {
     setCampaignToDelete(id);
     setShowDeleteDialog(true);
-  };
+  }, []);
 
-  const handleDeleteConfirmed = async () => {
+  const handleDeleteConfirmed = useCallback(async () => {
     if (campaignToDelete) {
-      await handleDeleteCampaign(campaignToDelete); // Your delete logic
+      await handleDeleteCampaign(campaignToDelete);
       setShowDeleteDialog(false);
       setCampaignToDelete(null);
     }
-  };
+  }, [campaignToDelete]);
 
-  const handleDeleteCancel = () => {
+  const handleDeleteCancel = useCallback(() => {
     setShowDeleteDialog(false);
     setCampaignToDelete(null);
-  };
+  }, []);
 
-  const handleDeleteCampaign = async (id) => {
+  const handleDeleteCampaign = useCallback(async (id) => {
     if (!user || !user.apiKeys?.[0]?.key) {
       setError("No API key found. Please Regenerate API Key.");
       return;
@@ -535,25 +576,28 @@ export default function TrafficSettings() {
     try {
       await deleteCampaign(user.email, id, user.apiKeys[0].key);
       setSuccess("Campaign deleted successfully!");
-      setCampaignToDelete(null);
-      // Campaign list will refresh via useEffect dependency on 'success'
+      // Update campaigns state directly instead of refetching
+      setCampaigns(prev => prev.filter(c => (c.id || c._id) !== id));
     } catch (err) {
       setError("Error deleting campaign.");
     }
     setLoading(false);
-  };
+  }, [user]);
 
-  const handleStopCampaign = async (id) => {
+  const handleStopCampaign = useCallback(async (id) => {
     setStoppingCampaignId(id);
     try {
       await stopCampaign(user.email, id, user.apiKeys[0].key);
       setSuccess("Campaign stopped successfully!");
-      // Let fetchUserCampaigns reload list due to 'success'
+      // Update campaigns state directly instead of refetching
+      setCampaigns(prev => prev.map(c => 
+        (c.id || c._id) === id ? { ...c, isActive: false } : c
+      ));
     } catch (err) {
       setError("Error stopping campaign.");
     }
     setStoppingCampaignId(null);
-  };
+  }, [user]);
 
   // --- Campaign List Section Component ---
   function CampaignSection({ title, icon: Icon, campaigns, onDeleteClick, onStopClick, emptyText, showStop }) {
@@ -638,6 +682,108 @@ export default function TrafficSettings() {
     );
   }
 
+  // Memoized form sections for better performance
+  const formSections = useMemo(() => ({
+    basic: (
+      <div className="traffic-form-section">
+        <h3 className="traffic-form-section-title">Basic Settings</h3>
+        <div className="traffic-form-grid">
+          <div className="traffic-form-group">
+            <label htmlFor="name" className="traffic-form-label">Campaign Name</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={data.name}
+              onChange={handleChange}
+              placeholder="Enter campaign name"
+              className="traffic-form-input"
+            />
+          </div>
+          <div className="traffic-form-group">
+            <label htmlFor="targetUrl" className="traffic-form-label">Target URL</label>
+            <input
+              type="url"
+              id="targetUrl"
+              name="targetUrl"
+              value={data.targetUrl}
+              onChange={handleChange}
+              placeholder="https://example.com"
+              className="traffic-form-input"
+            />
+          </div>
+        </div>
+      </div>
+    ),
+    traffic: (
+      <div className="traffic-form-section">
+        <h3 className="traffic-form-section-title">Traffic Configuration</h3>
+        <div className="traffic-form-grid">
+          <div className="traffic-form-group">
+            <label htmlFor="sessionsPerHour" className="traffic-form-label">
+              Sessions per Hour: {data.sessionsPerHour}
+            </label>
+            <input
+              type="range"
+              id="sessionsPerHour"
+              name="sessionsPerHour"
+              min="1"
+              max="1000"
+              value={data.sessionsPerHour}
+              onChange={handleSliderChange}
+              className="traffic-form-slider"
+            />
+          </div>
+          <div className="traffic-form-group">
+            <label htmlFor="sessionDuration" className="traffic-form-label">
+              Session Duration (minutes): {data.sessionDuration}
+            </label>
+            <input
+              type="range"
+              id="sessionDuration"
+              name="sessionDuration"
+              min="1"
+              max="30"
+              value={data.sessionDuration}
+              onChange={handleSliderChange}
+              className="traffic-form-slider"
+            />
+          </div>
+          <div className="traffic-form-group">
+            <label htmlFor="bounceRate" className="traffic-form-label">
+              Bounce Rate (%): {data.bounceRate}
+            </label>
+            <input
+              type="range"
+              id="bounceRate"
+              name="bounceRate"
+              min="0"
+              max="100"
+              value={data.bounceRate}
+              onChange={handleSliderChange}
+              className="traffic-form-slider"
+            />
+          </div>
+          <div className="traffic-form-group">
+            <label htmlFor="pagesPerSession" className="traffic-form-label">
+              Pages per Session: {data.pagesPerSession}
+            </label>
+            <input
+              type="range"
+              id="pagesPerSession"
+              name="pagesPerSession"
+              min="1"
+              max="20"
+              value={data.pagesPerSession}
+              onChange={handleSliderChange}
+              className="traffic-form-slider"
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }), [data, handleChange, handleSliderChange, handleCheckboxChange, handleSocialChange]);
+
   return (
     <motion.div
       className="space-y-6 lg:space-y-10 p-4 sm:p-6 mx-auto"
@@ -711,9 +857,10 @@ export default function TrafficSettings() {
             <Input
               key="url"
               label="Target URL"
+              name="url"
               placeholder="https://example.com"
               value={data.url}
-              onChange={handleChange('url')}
+              onChange={handleChange}
               required
             />,
             <VisitDurationRange
@@ -728,32 +875,32 @@ export default function TrafficSettings() {
             <Input
               key="delay"
               label="Delay Between Visits (sec)"
+              name="delay"
               type="number"
               value={data.delay}
-              onChange={handleChange('delay')}
+              onChange={handleChange}
             />,
             <Slider
               key="bounce"
               label="Bounce Rate (%)"
               value={data.bounceRate}
-              onChange={(e) =>
-                setData((d) => ({ ...d, bounceRate: Number(e.target.value) }))
-              }
+              onChange={handleSliderChange}
+              name="bounceRate"
             />,
             <Input
               key="concurrent"
               label="Concurrent Sessions"
+              name="concurrent"
               type="number"
               value={data.concurrent}
-              onChange={handleChange('concurrent')}
+              onChange={handleChange}
               tooltip="Number of browser sessions running simultaneously"
             />,
             <div key="scrolling" className="flex items-center space-x-4 mt-4 sm:mt-6">
               <Switch
                 checked={data.scrolling}
-                onChange={(e) =>
-                  setData((d) => ({ ...d, scrolling: e.target.checked }))
-                }
+                onChange={handleCheckboxChange}
+                name="scrolling"
                 label="Enable Scrolling"
               />
             </div>,
@@ -769,9 +916,8 @@ export default function TrafficSettings() {
               key="headful"
               label="Headful Browser Sessions (%)"
               value={data.headfulPercentage}
-              onChange={(e) =>
-                setData((d) => ({ ...d, headfulPercentage: Number(e.target.value) }))
-              }
+              onChange={handleSliderChange}
+              name="headfulPercentage"
               tooltip="Percentage of sessions that will run with visible browser windows (useful for debugging). 0% = all headless, 100% = all visible. "
             />,
             // <Input
@@ -784,27 +930,28 @@ export default function TrafficSettings() {
             <Input
               key="totalSessions"
               label="Total Traffic Sessions"
+              name="totalSessions"
               type="number"
               placeholder="Leave empty for unlimited"
               value={data.totalSessions}
-              onChange={handleChange('totalSessions')}
+              onChange={handleChange}
               tooltip="Total number of sessions to generate. Leave empty to run continuously until manually stopped."
             />,
             <Input
               key="organic"
               label="Organic Traffic (%)"
+              name="organic"
               type="number"
               value={data.organic}
-              onChange={handleChange('organic')}
+              onChange={handleChange}
               tooltip="Percentage of sessions that will be organic (not from referral sources). The proportion (%) of traffic considered organic (i.e., unpaid, from search engines). Balances between organic and paid/social sources to mimic real-world traffic composition."
             />,
             <Slider
               key="desktop"
               label="Desktop Traffic (%)"
               value={data.desktopPercentage}
-              onChange={(e) =>
-                setData((d) => ({ ...d, desktopPercentage: Number(e.target.value) }))
-              }
+              onChange={handleSliderChange}
+              name="desktopPercentage"
               tooltip="Percentage of sessions that will use desktop devices. 0% = all mobile, 100% = all desktop. Remaining percentage will be mobile traffic."
             />,
             <GeoSelect
@@ -817,25 +964,28 @@ export default function TrafficSettings() {
             <Input
               key="adSelectors"
               label="CSS Ad Selectors"
+              name="adSelectors"
               placeholder=".GoogleActiveViewElement, .ad-class, #ad-iframe"
               value={data.adSelectors}
-              onChange={handleChange('adSelectors')}
+              onChange={handleChange}
               tooltip="Comma-separated list of CSS selectors for ads to be clicked. Leave empty for default selectors."
             />,
             <Input
               key="adsXPath"
               label="Google Ads Container X-Paths"
+              name="adsXPath"
               placeholder="//div[@data-google-av-cxn], //ins[@class='adsbygoogle'], //div[contains(@class, 'GoogleActiveViewElement')]"
               value={data.adsXPath}
-              onChange={handleChange('adsXPath')}
+              onChange={handleChange}
               tooltip="Comma-separated list of X-Path expressions for Google Ads container elements. Examples: //div[@data-google-av-cxn], //ins[@class='adsbygoogle'], //div[contains(@class, 'GoogleActiveViewElement')]. Only works in headful mode."
             />,
             <Input
               key="notes"
               label="Campaign Notes"
+              name="notes"
               placeholder="Describe this campaign..."
               value={data.notes}
-              onChange={handleChange('notes')}
+              onChange={handleChange}
             />
           ].map((field, idx) => (
             <motion.div
@@ -862,9 +1012,8 @@ export default function TrafficSettings() {
           <div className='px-2 sm:px-4'>
             <Switch
               checked={data.scheduling}
-              onChange={(e) =>
-                setData((d) => ({ ...d, scheduling: e.target.checked }))
-              }
+              onChange={handleCheckboxChange}
+              name="scheduling"
               label="Enable Scheduling"
             />
             <AnimatePresence>
@@ -914,13 +1063,9 @@ export default function TrafficSettings() {
                   >
                     <Checkbox
                       label={`${src}`}
+                      name={src}
                       checked={data.social[src]}
-                      onChange={(e) =>
-                        setData((d) => ({
-                          ...d,
-                          social: { ...d.social, [src]: e.target.checked },
-                        }))
-                      }
+                      onChange={handleSocialChange}
                     />
                   </motion.div>
                 ))}
@@ -930,8 +1075,9 @@ export default function TrafficSettings() {
               <Label>Custom Referrers</Label>
               <Textarea
                 placeholder="One URL per line"
+                name="custom"
                 value={data.custom}
-                onChange={handleChange('custom')}
+                onChange={handleChange}
               />
             </div>
           </div>

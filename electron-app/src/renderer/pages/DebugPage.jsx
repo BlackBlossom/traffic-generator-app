@@ -15,6 +15,7 @@ import {
 } from "@heroicons/react/24/outline";
 import CampaignMonitor from "../components/CampaignMonitor";
 import { getUserCampaigns } from "../api/auth";
+import { useLocation } from "react-router-dom";
 
 const stats = [
   { label: "Errors", value: 12, icon: ExclamationTriangleIcon, accent: "bg-[#d32f2f]/10 text-[#d32f2f] dark:bg-[#ef5350]/10 dark:text-[#ef5350]", description: "Active system errors" },
@@ -34,6 +35,7 @@ const cardVariants = {
 };
 
 export default function DebugPage() {
+  const location = useLocation();
   const logs = useWebSocketLogs();
   const { connectionStatus } = useWebSocketManager();
   const { user } = useUser();
@@ -45,6 +47,17 @@ export default function DebugPage() {
   const [isUserScrollingLiveLogs, setIsUserScrollingLiveLogs] = useState(false);
   
   const liveLogsContainerRef = useRef(null);
+
+  
+  // Scroll to top on mount
+  useEffect(() => {
+    const scroller = document.querySelector('.main-scrollable');
+    if (scroller) {
+      scroller.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [location.pathname]);
 
   // Load user campaigns
   useEffect(() => {
@@ -314,7 +327,7 @@ export default function DebugPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="rounded-xl h-[300px] sm:h-[350px] lg:h-[400px] border shadow-lg mb-6 sm:mb-8 lg:mb-10 bg-[#232635] dark:bg-[#181828] border-[#e5e5e5] dark:border-[#333762] transition-all flex flex-col"
+        className="rounded-xl h-[400px] sm:h-[450px] lg:h-[600px] border shadow-lg mb-6 sm:mb-8 lg:mb-10 bg-[#232635] dark:bg-[#181828] border-[#e5e5e5] dark:border-[#333762] transition-all flex flex-col"
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 px-3 sm:px-5 py-2 sm:py-3 border-b border-[#e5e5e5] dark:border-[#333762] flex-shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">

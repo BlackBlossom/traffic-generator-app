@@ -13,7 +13,7 @@ export default function Layout({ children }) {
         <TitleBar />
       </div>
       {/*  */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex relative flex-1 min-h-0">
         {/* Fixed Sidebar */}
         <div className="flex-shrink-0 z-30">
           <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
