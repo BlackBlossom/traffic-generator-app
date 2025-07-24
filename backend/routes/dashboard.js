@@ -63,35 +63,11 @@ router.get('/:email/quick-stats', apiKeyAuth, async (req, res) => {
   try {
     const userEmail = req.params.email;
     
-    // Get basic stats without full analytics calculation
-    const User = require('../models/User');
-    const user = await User.findOne({ email: userEmail }).populate('campaigns');
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    const campaigns = user.campaigns || [];
-    const totalCampaigns = campaigns.length;
-    const activeCampaigns = campaigns.filter(c => c.status === 'running').length;
-    
-    // Calculate basic metrics
-    const totalVisits = campaigns.reduce((sum, c) => sum + (c.analytics?.totalVisits || 0), 0);
-    const totalBounce = campaigns.reduce((sum, c) => sum + (c.analytics?.bounceRate || 0), 0);
-    const avgBounceRate = totalCampaigns > 0 ? totalBounce / totalCampaigns : 0;
+    const quickStats = await dashboardAnalytics.getQuickStats(userEmail);
     
     res.json({
       success: true,
-      data: {
-        totalCampaigns,
-        activeCampaigns,
-        totalVisits,
-        avgBounceRate: Math.round(avgBounceRate * 100) / 100,
-        lastUpdated: new Date()
-      }
+      data: quickStats
     });
     
   } catch (error) {

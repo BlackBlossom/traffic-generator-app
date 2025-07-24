@@ -640,7 +640,7 @@ export default function TrafficSettings() {
 
   return (
     <motion.div
-      className="space-y-6 lg:space-y-10 p-4 sm:p-6 mx-auto max-w-7xl"
+      className="space-y-6 lg:space-y-10 p-4 sm:p-6 mx-auto"
       initial="hidden"
       animate="visible"
       variants={sectionVariants}

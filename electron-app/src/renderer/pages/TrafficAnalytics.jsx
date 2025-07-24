@@ -917,14 +917,14 @@ export default function TrafficAnalytics() {
                 </div>
                 <div className="text-center p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <div className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600">
-                    {analyticsData.sources.direct.reduce((sum, val) => sum + (val || 0), 0)}
+                    {analyticsData.sourcesStats.direct}
                   </div>
                   <div className="text-xs sm:text-sm text-[#598185] dark:text-[#d0d2e5]">Direct</div>
                   <div className="text-xs text-[#598185] dark:text-[#d0d2e5] mt-1">No Referrer</div>
                 </div>
                 <div className="text-center p-3 sm:p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                   <div className="text-lg sm:text-xl md:text-2xl font-bold text-purple-600">
-                    {analyticsData.sources.social.reduce((sum, val) => sum + (val || 0), 0)}
+                    {analyticsData.sourcesStats.social}
                   </div>
                   <div className="text-xs sm:text-sm text-[#598185] dark:text-[#d0d2e5]">Social</div>
                   <div className="text-xs text-[#598185] dark:text-[#d0d2e5] mt-1">Social Media</div>
