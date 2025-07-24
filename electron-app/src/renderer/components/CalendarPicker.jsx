@@ -164,7 +164,7 @@ function CalendarPicker({
                        ? 'border-red-500 dark:border-red-400 focus:ring-red-500'
                        : 'border-[#598185] dark:border-[#86cb92] focus:ring-[#86cb92]'
                    } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-        whileHover={!disabled ? { scale: 1.01 } : {}}
+        whileHover={!disabled ? { scale: 1.0 } : {}}
         whileTap={!disabled ? { scale: 0.99 } : {}}
       >
         <span className={value ? 'text-[#404e7c] dark:text-[#d0d2e5]' : 'text-gray-400'}>
@@ -190,7 +190,7 @@ function CalendarPicker({
                 type="button"
                 onClick={() => navigateMonth(-1)}
                 className="p-2 rounded-lg hover:bg-[#598185]/10 dark:hover:bg-[#86cb92]/10 transition"
-                whileHover={{ scale: 1.1 }}
+                whileHover={{ scale: 1.0 }}
                 whileTap={{ scale: 0.9 }}
               >
                 <ChevronLeftIcon className="w-4 h-4 text-[#404e7c] dark:text-[#d0d2e5]" />
@@ -210,7 +210,7 @@ function CalendarPicker({
                 type="button"
                 onClick={() => navigateMonth(1)}
                 className="p-2 rounded-lg hover:bg-[#598185]/10 dark:hover:bg-[#86cb92]/10 transition"
-                whileHover={{ scale: 1.1 }}
+                whileHover={{ scale: 1.0 }}
                 whileTap={{ scale: 0.9 }}
               >
                 <ChevronRightIcon className="w-4 h-4 text-[#404e7c] dark:text-[#d0d2e5]" />
@@ -256,7 +256,7 @@ function CalendarPicker({
                       : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                     }
                   `}
-                  whileHover={!dayObj.isDisabled ? { scale: 1.1 } : {}}
+                  whileHover={!dayObj.isDisabled ? { scale: 1.0 } : {}}
                   whileTap={!dayObj.isDisabled ? { scale: 0.9 } : {}}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -296,7 +296,7 @@ function CalendarPicker({
                 }}
                 className="w-full py-2 text-sm text-[#598185] dark:text-[#86cb92] hover:bg-[#598185]/10 
                           dark:hover:bg-[#86cb92]/10 rounded-lg transition font-medium"
-                whileHover={{ scale: 1.02 }}
+                whileHover={{ scale: 1.00 }}
                 whileTap={{ scale: 0.98 }}
               >
                 {minDate && new Date() < new Date(minDate + 'T00:00:00') ? 'Select Start Date' : 'Today'}
