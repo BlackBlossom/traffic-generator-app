@@ -156,11 +156,14 @@ const CampaignSchema = new mongoose.Schema({
   analytics: {
     totalSessions: { type: Number, default: 0 },
     totalVisits: { type: Number, default: 0 },
-    completedSessions: { type: Number, default: 0 },
+    completedSessions: { type: Number, default: 0 }, // Includes bounced sessions
     bouncedSessions: { type: Number, default: 0 },
+    erroredSessions: { type: Number, default: 0 }, // Failed/incomplete sessions
+    activeSessions: { type: Number, default: 0 }, // Currently running sessions
     totalDuration: { type: Number, default: 0 }, // Sum of all session durations
     avgDuration: { type: Number, default: 0 },
-    bounceRate: { type: Number, default: 0 }, // Percentage
+    bounceRate: { type: Number, default: 0 }, // bouncedSessions/completedSessions * 100
+    efficiency: { type: Number, default: 0 }, // completedSessions / totalSessions * 100
     
     // Traffic Sources
     sources: {

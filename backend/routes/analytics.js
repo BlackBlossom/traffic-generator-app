@@ -3,20 +3,17 @@ const express = require('express');
 const router = express.Router();
 const trafficAnalytics = require('../services/trafficAnalytics');
 const campaignAnalytics = require('../services/campaignAnalytics');
-const authMiddleware = require('../middleware/authMiddleware');
-
-// Apply auth middleware to all analytics routes
-router.use(authMiddleware);
+const apiKeyAuth = require('../middleware/apiKeyAuth');
 
 /**
- * GET /api/analytics/overview
+ * GET /api/analytics/:email/overview
  * Get traffic analytics overview data
  */
-router.get('/overview', async (req, res) => {
+router.get('/:email/overview', apiKeyAuth, async (req, res) => {
   try {
     const { campaignIds } = req.query;
     const ids = campaignIds ? campaignIds.split(',') : null;
-    const userEmail = req.user?.email; // Get user email from auth middleware
+    const userEmail = req.params.email; // Get user email from route params
     
     const analyticsData = await trafficAnalytics.getAnalyticsData(ids, userEmail);
     
@@ -35,13 +32,13 @@ router.get('/overview', async (req, res) => {
 });
 
 /**
- * GET /api/analytics/live-sessions
+ * GET /api/analytics/:email/live-sessions
  * Get live/recent session activity
  */
-router.get('/live-sessions', async (req, res) => {
+router.get('/:email/live-sessions', apiKeyAuth, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const userEmail = req.user?.email; // Get user email from auth middleware
+    const userEmail = req.params.email; // Get user email from route params
     const liveSessions = await trafficAnalytics.getLiveSessionActivity(limit, userEmail);
     
     res.json({
@@ -59,62 +56,13 @@ router.get('/live-sessions', async (req, res) => {
 });
 
 /**
- * GET /api/analytics/campaign/:campaignId/report
- * Get permanent campaign analytics report from database
- */
-router.get('/campaign/:campaignId/report', async (req, res) => {
-  try {
-    const { campaignId } = req.params;
-    
-    const campaignReport = await campaignAnalytics.getCampaignReport(campaignId);
-    
-    res.json({
-      success: true,
-      data: campaignReport
-    });
-  } catch (error) {
-    console.error('Error fetching campaign report:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch campaign report',
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/analytics/campaign/:campaignId
- * Get detailed analytics for a specific campaign (Redis-based, real-time)
- */
-router.get('/campaign/:campaignId', async (req, res) => {
-  try {
-    const { campaignId } = req.params;
-    const userEmail = req.user?.email; // Get user email from auth middleware
-    
-    const campaignAnalytics = await trafficAnalytics.getCampaignAnalytics(campaignId, userEmail);
-    
-    res.json({
-      success: true,
-      data: campaignAnalytics
-    });
-  } catch (error) {
-    console.error('Error fetching campaign analytics:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch campaign analytics',
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/analytics/session-history
+ * GET /api/analytics/:email/session-history
  * Get session history for the table
  */
-router.get('/session-history', async (req, res) => {
+router.get('/:email/session-history', apiKeyAuth, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
-    const userEmail = req.user?.email; // Get user email from auth middleware
+    const userEmail = req.params.email; // Get user email from route params
     const sessionHistory = await trafficAnalytics.getSessionHistory(limit, userEmail);
     
     res.json({
@@ -132,13 +80,50 @@ router.get('/session-history', async (req, res) => {
 });
 
 /**
- * GET /api/analytics/campaign/:campaignId
+ * GET /api/analytics/:email/stats
+ * Get quick stats for dashboard
+ */
+router.get('/:email/stats', apiKeyAuth, async (req, res) => {
+  try {
+    const userEmail = req.params.email; // Get user email from route params
+    const analyticsData = await trafficAnalytics.getAnalyticsData(null, userEmail);
+    
+    res.json({
+      success: true,
+      data: {
+        online: analyticsData.overview.activeSessions,
+        total: analyticsData.overview.totalSessions,
+        totalVisits: analyticsData.overview.totalVisits, // Add this field
+        avgDuration: analyticsData.overview.avgDuration,
+        mobile: analyticsData.overview.mobileCount,
+        desktop: analyticsData.overview.desktopCount,
+        completed: analyticsData.overview.completedSessions,
+        bounced: analyticsData.overview.bouncedSessions,
+        efficiency: analyticsData.overview.efficiency, // Add efficiency
+        bounceRate: analyticsData.overview.bounceRate, // Add bounce rate
+        totalCampaigns: analyticsData.overview.totalCampaigns, // Add campaign counts
+        activeCampaigns: analyticsData.overview.activeCampaigns,
+        sourcesStats: analyticsData.overview.sourcesStats // Add sources
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching analytics stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch analytics stats',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/analytics/:email/campaign/:campaignId
  * Get analytics data for a specific campaign
  */
-router.get('/campaign/:campaignId', async (req, res) => {
+router.get('/:email/campaign/:campaignId', apiKeyAuth, async (req, res) => {
   try {
     const { campaignId } = req.params;
-    const userEmail = req.user?.email; // Get user email from auth middleware
+    const userEmail = req.params.email; // Get user email from route params
     const analyticsData = await trafficAnalytics.getAnalyticsData([campaignId], userEmail);
     
     const campaignData = analyticsData.campaigns[campaignId];
@@ -148,7 +133,7 @@ router.get('/campaign/:campaignId', async (req, res) => {
         message: 'Campaign not found or no data available'
       });
     }
-    
+
     res.json({
       success: true,
       data: {
@@ -163,37 +148,6 @@ router.get('/campaign/:campaignId', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch campaign analytics',
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/analytics/stats
- * Get quick stats for dashboard
- */
-router.get('/stats', async (req, res) => {
-  try {
-    const userEmail = req.user?.email; // Get user email from auth middleware
-    const analyticsData = await trafficAnalytics.getAnalyticsData(null, userEmail);
-    
-    res.json({
-      success: true,
-      data: {
-        online: analyticsData.overview.activeSessions,
-        total: analyticsData.overview.totalSessions,
-        avgDuration: analyticsData.overview.avgDuration,
-        mobile: analyticsData.overview.mobileCount,
-        desktop: analyticsData.overview.desktopCount,
-        completed: analyticsData.overview.completedSessions,
-        bounced: analyticsData.overview.bouncedSessions
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching analytics stats:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch analytics stats',
       error: error.message
     });
   }

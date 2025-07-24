@@ -450,12 +450,19 @@ class CampaignAnalytics {
       // Initialize analytics if not exists
       if (!campaign.analytics) {
         campaign.analytics = {
+          totalSessions: 0,
           totalVisits: 0,
           completedSessions: 0,
           bouncedSessions: 0,
+          erroredSessions: 0,
+          activeSessions: 0,
+          totalDuration: 0,
+          avgDuration: 0,
+          bounceRate: 0,
+          efficiency: 0,
           devices: {
-            desktop: 0,
-            mobile: 0
+            mobile: 0,
+            desktop: 0
           },
           sources: {
             organic: 0,
@@ -463,25 +470,32 @@ class CampaignAnalytics {
             social: 0,
             referral: 0
           },
-          averageSessionDuration: 0
+          startedAt: new Date(),
+          lastUpdated: new Date()
         };
       }
 
       // Update analytics based on session data
       const analytics = campaign.analytics;
       
-      // Update visit counts
+      // Update session counts
+      analytics.totalSessions += 1;
       analytics.totalVisits += 1;
       
-      if (sessionData.completed) {
+      // Handle session completion/status
+      if (sessionData.error || sessionData.incomplete) {
+        analytics.erroredSessions += 1;
+      } else {
+        // All non-errored sessions are considered completed (including bounced)
         analytics.completedSessions += 1;
-      }
-      
-      if (sessionData.bounced) {
-        analytics.bouncedSessions += 1;
+        
+        if (sessionData.bounced) {
+          analytics.bouncedSessions += 1;
+        }
       }
 
-      // Update device stats
+      // Update device stats using devices.mobile and devices.desktop
+      analytics.devices = analytics.devices || { mobile: 0, desktop: 0 };
       if (sessionData.device === 'Desktop') {
         analytics.devices.desktop += 1;
       } else {
@@ -490,36 +504,162 @@ class CampaignAnalytics {
 
       // Update traffic source stats
       const source = (sessionData.source || 'Direct').toLowerCase();
-      if (analytics.sources[source] !== undefined) {
-        analytics.sources[source] += 1;
+      if (source.includes('organic') || source.includes('google') || source.includes('search')) {
+        analytics.sources.organic += 1;
+      } else if (source.includes('social') || source.includes('facebook') || source.includes('twitter') || source.includes('instagram')) {
+        analytics.sources.social += 1;
+      } else if (source.includes('referral') || source.includes('referrer')) {
+        analytics.sources.referral += 1;
       } else {
-        analytics.sources.direct += 1; // Default fallback
+        analytics.sources.direct += 1;
       }
 
-      // Update average session duration
-      if (sessionData.duration && analytics.completedSessions > 0) {
-        const totalDuration = (analytics.averageSessionDuration * (analytics.completedSessions - 1)) + sessionData.duration;
-        analytics.averageSessionDuration = Math.round(totalDuration / analytics.completedSessions);
+      // Update duration tracking
+      if (sessionData.duration) {
+        analytics.totalDuration += sessionData.duration;
+        analytics.avgDuration = Math.round(analytics.totalDuration / analytics.totalSessions);
       }
+
+      // Calculate bounce rate (bouncedSessions / completedSessions * 100)
+      if (analytics.completedSessions > 0) {
+        analytics.bounceRate = Math.round((analytics.bouncedSessions / analytics.completedSessions) * 100);
+      } else {
+        analytics.bounceRate = 0;
+      }
+
+      // Calculate efficiency (completedSessions / totalSessions * 100)
+      // Note: completedSessions already excludes errored sessions
+      if (analytics.totalSessions > 0) {
+        analytics.efficiency = Math.round((analytics.completedSessions / analytics.totalSessions) * 100);
+      } else {
+        analytics.efficiency = 0;
+      }
+
+      // Update timestamps
+      analytics.lastUpdated = new Date();
+      if (sessionData.completed) {
+        analytics.completedAt = new Date();
+      }
+
+      // Ensure all expected fields are present with proper values
+      analytics.activeSessions = analytics.activeSessions || 0;
+      analytics.mobileCount = analytics.mobileCount || 0;
+      analytics.desktopCount = analytics.desktopCount || 0;
+      analytics.efficiency = analytics.efficiency || 0;
 
       // Save updated campaign analytics
       campaign.analytics = analytics;
-      campaign.completedSessions = analytics.completedSessions; // Keep legacy field in sync
+      
+      // Keep legacy fields in sync for backward compatibility
+      campaign.completedSessions = analytics.completedSessions;
+      campaign.totalSessions = analytics.totalSessions;
+      campaign.avgDuration = analytics.avgDuration;
+      campaign.bouncedSessions = analytics.bouncedSessions;
       campaign.lastUpdated = new Date();
       
       await campaign.save();
       
       console.log(`✅ Session analytics recorded for campaign ${campaignId}:`, {
+        totalSessions: analytics.totalSessions,
         totalVisits: analytics.totalVisits,
-        completed: sessionData.completed,
+        completedSessions: analytics.completedSessions,
+        bouncedSessions: analytics.bouncedSessions,
+        erroredSessions: analytics.erroredSessions,
+        completed: !sessionData.error && !sessionData.incomplete,
+        bounced: sessionData.bounced,
+        errored: sessionData.error || sessionData.incomplete,
         device: sessionData.device,
         source: sessionData.source,
-        duration: sessionData.duration
+        duration: sessionData.duration,
+        bounceRate: analytics.bounceRate,
+        efficiency: analytics.efficiency,
+        avgDuration: analytics.avgDuration,
+        mobileCount: analytics.devices?.mobile || 0,
+        desktopCount: analytics.devices?.desktop || 0
       });
       
       return true;
     } catch (error) {
       console.error(`❌ Error recording session analytics for campaign ${campaignId}:`, error);
+      throw error;
+    }
+  }
+
+  // Track when a session starts (for active session counting)
+  async recordSessionStart(campaignId, sessionId) {
+    try {
+      const campaign = await Campaign.findById(campaignId);
+      if (!campaign) {
+        throw new Error(`Campaign ${campaignId} not found`);
+      }
+
+      // Initialize analytics if not exists
+      if (!campaign.analytics) {
+        campaign.analytics = {
+          totalSessions: 0,
+          totalVisits: 0,
+          completedSessions: 0,
+          bouncedSessions: 0,
+          activeSessions: 0,
+          totalDuration: 0,
+          avgDuration: 0,
+          bounceRate: 0,
+          efficiency: 0,
+          devices: {
+            mobile: 0,
+            desktop: 0
+          },
+          sources: {
+            organic: 0,
+            direct: 0,
+            social: 0,
+            referral: 0
+          },
+          startedAt: new Date(),
+          lastUpdated: new Date()
+        };
+      }
+
+      // Increment active sessions (initialize to 0 if undefined)
+      if (!campaign.analytics.activeSessions) {
+        campaign.analytics.activeSessions = 0;
+      }
+      campaign.analytics.activeSessions += 1;
+      campaign.analytics.lastUpdated = new Date();
+      
+      await campaign.save();
+      
+      console.log(`🚀 Session started for campaign ${campaignId}, active sessions: ${campaign.analytics.activeSessions}`);
+      
+      return true;
+    } catch (error) {
+      console.error(`❌ Error recording session start for campaign ${campaignId}:`, error);
+      throw error;
+    }
+  }
+
+  // Track when a session ends (for active session counting)
+  async recordSessionEnd(campaignId, sessionId) {
+    try {
+      const campaign = await Campaign.findById(campaignId);
+      if (!campaign || !campaign.analytics) {
+        return false;
+      }
+
+      // Decrement active sessions (ensure it doesn't go below 0)
+      if (!campaign.analytics.activeSessions) {
+        campaign.analytics.activeSessions = 0;
+      }
+      campaign.analytics.activeSessions = Math.max(0, campaign.analytics.activeSessions - 1);
+      campaign.analytics.lastUpdated = new Date();
+      
+      await campaign.save();
+      
+      console.log(`🏁 Session ended for campaign ${campaignId}, active sessions: ${campaign.analytics.activeSessions}`);
+      
+      return true;
+    } catch (error) {
+      console.error(`❌ Error recording session end for campaign ${campaignId}:`, error);
       throw error;
     }
   }

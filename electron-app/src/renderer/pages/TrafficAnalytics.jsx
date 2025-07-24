@@ -48,17 +48,30 @@ function formatTimeAgo(timestamp) {
 }
 
 function formatSessionEvent(event) {
-  const eventTypes = {
-    request: { icon: GlobeIcon, color: "text-blue-500" },
-    mouse: { icon: CursorArrowRaysIcon, color: "text-green-500" },
-    scroll: { icon: ArrowPathIcon, color: "text-yellow-500" },
-    complete: { icon: CheckCircleIcon, color: "text-green-600" },
-    download: { icon: ArrowDownTrayIcon, color: "text-purple-500" },
-    upload: { icon: ArrowUpTrayIcon, color: "text-indigo-500" },
-    error: { icon: ExclamationCircleIcon, color: "text-red-500" }
-  };
+  const level = event.level?.toLowerCase() || 'info';
+  const message = event.message?.toLowerCase() || '';
   
-  return eventTypes[event.type] || eventTypes.request;
+  // Map by log level first, then by message content
+  if (level === 'error') {
+    return { icon: ExclamationCircleIcon, color: "text-red-500", bgColor: "bg-red-50 dark:bg-red-900/20" };
+  } else if (level === 'warn' || level === 'warning') {
+    return { icon: ExclamationCircleIcon, color: "text-orange-500", bgColor: "bg-orange-50 dark:bg-orange-900/20" };
+  } else if (message.includes('click') || message.includes('mouse')) {
+    return { icon: CursorArrowRaysIcon, color: "text-green-500", bgColor: "bg-green-50 dark:bg-green-900/20" };
+  } else if (message.includes('scroll')) {
+    return { icon: ArrowPathIcon, color: "text-yellow-500", bgColor: "bg-yellow-50 dark:bg-yellow-900/20" };
+  } else if (message.includes('completed') || message.includes('finished')) {
+    return { icon: CheckCircleIcon, color: "text-green-600", bgColor: "bg-green-50 dark:bg-green-900/20" };
+  } else if (message.includes('download')) {
+    return { icon: ArrowDownTrayIcon, color: "text-purple-500", bgColor: "bg-purple-50 dark:bg-purple-900/20" };
+  } else if (message.includes('upload')) {
+    return { icon: ArrowUpTrayIcon, color: "text-indigo-500", bgColor: "bg-indigo-50 dark:bg-indigo-900/20" };
+  } else if (message.includes('navigate') || message.includes('request')) {
+    return { icon: GlobeIcon, color: "text-blue-500", bgColor: "bg-blue-50 dark:bg-blue-900/20" };
+  }
+  
+  // Default for info level and unknown events
+  return { icon: GlobeIcon, color: "text-blue-500", bgColor: "bg-blue-50 dark:bg-blue-900/20" };
 }
 
 // ---- Stat Card ----
@@ -203,6 +216,12 @@ function SessionActivityCard({ session, custom }) {
           </div>
         </div>
         
+        {session.campaignUrl && (
+          <div className="text-xs text-[#598185] dark:text-[#d0d2e5] font-mono bg-gray-50 dark:bg-[#251f47]/30 px-2 py-1 rounded">
+            <span className="font-semibold">Campaign:</span> {session.campaignUrl}
+          </div>
+        )}
+        
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="text-[#404e7c] dark:text-[#86cb92] text-sm">
             <span className="font-semibold">Source:</span> {session.source}
@@ -238,22 +257,42 @@ function SessionActivityCard({ session, custom }) {
       
       {session.events && session.events.length > 0 && (
         <div className="mt-3 pt-3 border-t border-[#86cb92]/20">
-          <div className="text-xs font-semibold text-[#598185] dark:text-[#d0d2e5] mb-2">Recent Events</div>
-          <ul className="space-y-1 max-h-24 sm:max-h-32 overflow-y-auto">
-            {session.events?.slice(-5).map((ev, idx) => {
-              const eventInfo = formatSessionEvent(ev);
-              const Icon = eventInfo.icon;
-              return (
-                <li key={idx} className="flex items-center gap-2 text-xs sm:text-sm">
-                  <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${eventInfo.color} flex-shrink-0`} />
-                  <span className="flex-1 truncate">{ev.message}</span>
-                  <span className="text-xs text-[#598185] dark:text-[#d0d2e5] flex-shrink-0">
-                    {formatTimeAgo(ev.timestamp)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="text-xs font-semibold text-[#598185] dark:text-[#d0d2e5] mb-2">
+            Session Activity ({session.events.length} events)
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            <ul className="space-y-1">
+              {session.events.map((ev, idx) => {
+                const eventInfo = formatSessionEvent(ev);
+                const Icon = eventInfo.icon;
+                return (
+                  <li key={idx} className={`flex items-start gap-2 text-xs sm:text-sm p-2 rounded-lg ${eventInfo.bgColor}`}>
+                    <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${eventInfo.color} flex-shrink-0 mt-0.5`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="break-words text-[#260f26] dark:text-[#86cb92]">{ev.message}</div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          ev.level === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                          ev.level === 'warn' || ev.level === 'warning' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
+                          'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                        }`}>
+                          {ev.level?.toUpperCase() || 'INFO'}
+                        </span>
+                        <span className="text-xs text-[#598185] dark:text-[#d0d2e5] flex-shrink-0">
+                          {new Date(ev.timestamp).toLocaleTimeString('en-US', { 
+                            hour12: false, 
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            second: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       )}
     </motion.div>
@@ -818,7 +857,7 @@ export default function TrafficAnalytics() {
           <h2 className="text-xl sm:text-2xl font-bold text-[#260f26] dark:text-[#86cb92] mb-6">
             Campaign Performance
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 space-y-4 sm:space-y-6 max-h-[500px] sm:max-h-[600px] overflow-y-auto pr-1 sm:pr-2">
             {Object.entries(analyticsData.campaigns).map(([campaignId, campaignData]) => (
               <div key={campaignId} className="bg-white/50 dark:bg-[#251f47]/30 rounded-xl p-3 sm:p-4 border border-[#86cb92]/20">
                 <div className="flex items-center justify-between mb-3">
@@ -871,7 +910,7 @@ export default function TrafficAnalytics() {
               <>
                 <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                   <div className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">
-                    {analyticsData.sources.organic.reduce((sum, val) => sum + (val || 0), 0)}
+                    {analyticsData.sourcesStats.organic}
                   </div>
                   <div className="text-xs sm:text-sm text-[#598185] dark:text-[#d0d2e5]">Organic</div>
                   <div className="text-xs text-[#598185] dark:text-[#d0d2e5] mt-1">Google Search</div>

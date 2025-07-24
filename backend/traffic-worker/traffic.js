@@ -297,6 +297,16 @@ async function launchSession(params, sessionId, ws, campaignId = null, userEmail
   };
 
   try {
+    // Track session start for active session counting
+    if (campaignId) {
+      try {
+        await campaignAnalytics.recordSessionStart(campaignId, sessionId);
+        logToWebsocket(ws, sessionId, 'debug', `Session start recorded for campaign ${campaignId}`, campaignId, userEmail);
+      } catch (startError) {
+        logToWebsocket(ws, sessionId, 'error', `Failed to record session start: ${startError.message}`, campaignId, userEmail);
+      }
+    }
+
     const headfulPercentage = params.headfulPercentage || 0;
     const shouldBeHeadful = Math.random() * 100 < headfulPercentage;
     sessionData.headful = shouldBeHeadful;
@@ -425,10 +435,16 @@ async function launchSession(params, sessionId, ws, campaignId = null, userEmail
   } finally {
     sessionData.endTime = new Date();
     sessionData.duration = Math.floor((sessionData.endTime - sessionData.startTime) / 1000);
+    
     if (campaignId) {
       try {
+        // Record session completion analytics
         await campaignAnalytics.recordSession(campaignId, sessionData);
         logToWebsocket(ws, sessionId, 'debug', `Session analytics recorded for campaign ${campaignId}.`, campaignId, userEmail);
+        
+        // Record session end for active session counting
+        await campaignAnalytics.recordSessionEnd(campaignId, sessionId);
+        logToWebsocket(ws, sessionId, 'debug', `Session end recorded for campaign ${campaignId}`, campaignId, userEmail);
       } catch (analyticsError) {
         logToWebsocket(ws, sessionId, 'error', `Failed to record session analytics: ${analyticsError.message}`, campaignId, userEmail);
       }
