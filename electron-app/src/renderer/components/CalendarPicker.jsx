@@ -48,6 +48,11 @@ function CalendarPicker({
     const daysCount = lastDay.getDate()
     const startingDayOfWeek = firstDay.getDay()
     
+    // Calculate today once, consistently - use local date without time component
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const todayDateString = today.toDateString()
+    
     const days = []
     
     // Previous month's trailing days
@@ -65,8 +70,7 @@ function CalendarPicker({
     // Current month days
     for (let day = 1; day <= daysCount; day++) {
       const date = new Date(year, month, day)
-      const today = new Date()
-      const isToday = date.toDateString() === today.toDateString()
+      const isToday = date.toDateString() === todayDateString
       const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString()
       
       // Check if date is disabled
@@ -74,8 +78,7 @@ function CalendarPicker({
       
       // For start date (no minDate), disable dates before today
       if (!minDate && !isDisabled) {
-        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-        isDisabled = date < todayStart
+        isDisabled = date < today
       }
       
       // For end date (has minDate), disable dates before minDate
@@ -272,7 +275,8 @@ function CalendarPicker({
               <motion.button
                 type="button"
                 onClick={() => {
-                  const today = new Date()
+                  const now = new Date()
+                  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
                   
                   // Format today's date as YYYY-MM-DD in local timezone
                   const year = today.getFullYear()
@@ -299,7 +303,12 @@ function CalendarPicker({
                 whileHover={{ scale: 1.00 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {minDate && new Date() < new Date(minDate + 'T00:00:00') ? 'Select Start Date' : 'Today'}
+                {minDate && (() => {
+                  const now = new Date()
+                  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                  const min = new Date(minDate + 'T00:00:00')
+                  return today < min
+                })() ? 'Select Start Date' : 'Today'}
               </motion.button>
             </div>
           </motion.div>
