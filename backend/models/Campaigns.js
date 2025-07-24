@@ -11,7 +11,6 @@ const SocialSchema = new mongoose.Schema({
 const CookieSchema = new mongoose.Schema({
   name: {
     type: String,
-    unique : true, // Ensure cookie names are unique per campaign
     required: true,
     trim: true
   },
