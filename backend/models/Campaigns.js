@@ -55,17 +55,6 @@ const CampaignSchema = new mongoose.Schema({
     type: Boolean,
     required: true
   },
-  quality: {
-    type: Number,
-    required: true,
-    min: 0,
-    max: 100
-  },
-  priority: {
-    type: Number,
-    required: true,
-    min: 1
-  },
   organic: {
     type: Number,
     required: true,
@@ -111,17 +100,21 @@ const CampaignSchema = new mongoose.Schema({
     type: Boolean,
     required: true
   },
-  startTime: {
-    type: String,
+  startDate: {
+    type: String, // YYYY-MM-DD format
     default: ''
-    // Optionally, use Date type if always ISO 8601
-    // type: Date
+  },
+  endDate: {
+    type: String, // YYYY-MM-DD format
+    default: ''
+  },
+  startTime: {
+    type: String, // HH:MM format
+    default: ''
   },
   endTime: {
-    type: String,
+    type: String, // HH:MM format
     default: ''
-    // Optionally, use Date type if always ISO 8601
-    // type: Date
   },
   social: {
     type: SocialSchema,
@@ -138,7 +131,7 @@ const CampaignSchema = new mongoose.Schema({
   device: {
     type: String,
     enum: ['Desktop', 'Mobile'],
-    required: true
+    default: 'Desktop'
   },
   notes: {
     type: String,
@@ -191,5 +184,77 @@ const CampaignSchema = new mongoose.Schema({
     lastUpdated: { type: Date, default: Date.now }
   }
 }, { timestamps: true });
+
+// Virtual field to get start datetime as a proper Date object
+CampaignSchema.virtual('startDateTime').get(function() {
+  if (this.startDate && this.startTime) {
+    return new Date(`${this.startDate}T${this.startTime}:00`);
+  }
+  return null;
+});
+
+// Virtual field to get end datetime as a proper Date object
+CampaignSchema.virtual('endDateTime').get(function() {
+  if (this.endDate && this.endTime) {
+    return new Date(`${this.endDate}T${this.endTime}:00`);
+  }
+  return null;
+});
+
+// Instance method to check if campaign should be active now
+CampaignSchema.methods.shouldBeActiveNow = function() {
+  if (!this.scheduling) return this.isActive;
+  
+  const now = new Date();
+  const startDateTime = this.startDateTime;
+  const endDateTime = this.endDateTime;
+  
+  if (!startDateTime || !endDateTime) return false;
+  
+  return now >= startDateTime && now <= endDateTime;
+};
+
+// Instance method to get next scheduled start time
+CampaignSchema.methods.getNextScheduledTime = function() {
+  if (!this.scheduling || !this.startDateTime) return null;
+  
+  const now = new Date();
+  if (this.startDateTime > now) {
+    return this.startDateTime;
+  }
+  return null;
+};
+
+// Static method to find campaigns that should start now
+CampaignSchema.statics.findCampaignsToStart = function() {
+  const now = new Date();
+  return this.find({
+    scheduling: true,
+    isActive: false,
+    $expr: {
+      $and: [
+        { $ne: ['$startDate', ''] },
+        { $ne: ['$startTime', ''] },
+        { $lte: [{ $dateFromString: { dateString: { $concat: ['$startDate', 'T', '$startTime', ':00'] } } }, now] }
+      ]
+    }
+  });
+};
+
+// Static method to find campaigns that should stop now
+CampaignSchema.statics.findCampaignsToStop = function() {
+  const now = new Date();
+  return this.find({
+    scheduling: true,
+    isActive: true,
+    $expr: {
+      $and: [
+        { $ne: ['$endDate', ''] },
+        { $ne: ['$endTime', ''] },
+        { $lte: [{ $dateFromString: { dateString: { $concat: ['$endDate', 'T', '$endTime', ':00'] } } }, now] }
+      ]
+    }
+  });
+};
 
 module.exports = mongoose.model('Campaigns', CampaignSchema);

@@ -24,20 +24,147 @@ import {
   deleteCampaign,
   stopCampaign
 } from '../api/auth'
+import CalendarPicker from '../components/CalendarPicker'
 
 // Utility to merge class names
 const cn = (...classes) => classes.filter(Boolean).join(' ')
 
-// === Mini‐components (unchanged, but font size improved) ===
+// Common CSS classes
+const TEXT_COLOR = 'text-[#404e7c] dark:text-[#d0d2e5]'
+const TITLE_COLOR = 'text-[#260f26] dark:text-[#86cb92]'
+const ACCENT_COLOR = 'text-[#598185] dark:text-[#86cb92]'
+
+// Helper functions
+const getInitialStartTime = () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 1);
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+};
+
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
+const formatDuration = (campaign) => {
+  const minDuration = campaign.visitDurationMin || campaign.visitDuration || 30;
+  const maxDuration = campaign.visitDurationMax || campaign.visitDuration || 30;
+  return minDuration === maxDuration ? `${minDuration}s` : `${minDuration}-${maxDuration}s`;
+};
+
+// Component for scheduling duration display
+const SchedulingDurationDisplay = ({ data, dateValidation, timeValidation }) => {
+  if (!data.startDate || !data.endDate || !data.startTime || !data.endTime || 
+      dateValidation.isStartInvalid || dateValidation.isEndInvalid ||
+      timeValidation.isStartInvalid || timeValidation.isEndInvalid) {
+    return null;
+  }
+
+  const startDateTime = new Date(`${data.startDate}T${data.startTime}:00`);
+  const endDateTime = new Date(`${data.endDate}T${data.endTime}:00`);
+  const durationMs = endDateTime - startDateTime;
+  const durationMinutes = Math.floor(durationMs / (1000 * 60));
+  const hours = Math.floor(durationMinutes / 60);
+  const minutes = durationMinutes % 60;
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  
+  let durationText = '';
+  if (days > 0) {
+    durationText = `${days}d ${remainingHours}h ${minutes}m`;
+  } else if (hours > 0) {
+    durationText = `${hours}h ${minutes}m`;
+  } else {
+    durationText = `${minutes}m`;
+  }
+  
+  return (
+    <motion.div 
+      className="text-center"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="text-xs text-[#598185] dark:text-[#86cb92] bg-[#f8f9ff] dark:bg-[#1c1b2f]/50 p-3 rounded-lg">
+        <div className="font-semibold mb-1">Campaign Duration: {durationText}</div>
+        <div className="opacity-75">
+          From {startDateTime.toLocaleDateString()} {startDateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} 
+          <br />
+          to {endDateTime.toLocaleDateString()} {endDateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Component for date selection
+const DateSelectionSection = ({ data, handleStartDateChange, handleEndDateChange, getDateValidation }) => {
+  const dateValidation = getDateValidation();
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <CalendarPicker
+        label="Start Date"
+        value={data.startDate}
+        onChange={handleStartDateChange}
+        isInvalid={dateValidation.isStartInvalid}
+        validationMessage={dateValidation.startMessage}
+      />
+      <CalendarPicker
+        label="End Date"
+        value={data.endDate}
+        onChange={handleEndDateChange}
+        minDate={data.startDate}
+        isInvalid={dateValidation.isEndInvalid}
+        validationMessage={dateValidation.endMessage}
+      />
+    </div>
+  );
+};
+
+// Component for animated form field
+const AnimatedField = ({ children, index }) => (
+  <motion.div
+    variants={fieldVariants}
+    custom={index}
+    initial="hidden"
+    animate="visible"
+  >
+    {children}
+  </motion.div>
+);
+
+// Component for time selection
+const TimeSelectionSection = ({ data, handleStartTimeChange, handleEndTimeChange, getTimeValidation }) => {
+  const timeValidation = getTimeValidation();
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <TimeSelect
+        label="Start Time"
+        value={data.startTime}
+        onChange={handleStartTimeChange}
+        isInvalid={timeValidation.isStartInvalid}
+        validationMessage={timeValidation.message}
+      />
+      <TimeSelect
+        label="End Time"
+        value={data.endTime}
+        onChange={handleEndTimeChange}
+        isInvalid={timeValidation.isEndInvalid}
+        validationMessage={timeValidation.message}
+      />
+    </div>
+  );
+};
+
+// === Mini‐components ===
 const Label = ({ children }) => (
-  <label className="block text-[16px] font-bold text-[#404e7c] dark:text-[#d0d2e5] mb-1">
+  <label className={`block text-[16px] font-bold ${TEXT_COLOR} mb-1`}>
     {children}
   </label>
 )
 
 const Input = React.forwardRef(({ label, tooltip, ...props }, ref) => (
   <div className="flex flex-col">
-    {/* {label && <Label>{label}</Label>} */}
     {label && (
       <div className="flex items-center gap-2 mb-1">
         <Label>{label}</Label>
@@ -118,7 +245,7 @@ const Switch = ({ label, checked, onChange, name }) => (
         )}
       />
     </span>
-    {label && <span className="text-sm text-[#404e7c] dark:text-[#d0d2e5]">{label}</span>}
+    {label && <span className={`text-sm ${TEXT_COLOR}`}>{label}</span>}
   </label>
 )
 
@@ -132,7 +259,7 @@ const Checkbox = ({ label, checked, onChange, name }) => (
       className="w-4 h-4 border rounded bg-white dark:bg-[#1c1b2f] border-[#598185] dark:border-[#86cb92]
                 focus:ring-2 focus:ring-[#86cb92]"
     />
-    {label && <span className="text-sm text-[#404e7c] dark:text-[#d0d2e5]">{label}</span>}
+    {label && <span className={`text-sm ${TEXT_COLOR}`}>{label}</span>}
   </label>
 )
 
@@ -149,16 +276,20 @@ const Textarea = React.forwardRef(({ label, ...props }, ref) => (
 ))
 Textarea.displayName = 'Textarea'
 
-function TimeListbox({ label, value, onChange, options }) {
+function TimeListbox({ label, value, onChange, options, isInvalid = false }) {
   return (
     <Listbox value={value} onChange={onChange}>
       <div className="flex flex-col">
         <div className="relative">
           <Listbox.Button
-            className="w-full h-10 pl-3 pr-8 rounded-lg bg-white/60 dark:bg-[#1c1b2f]/60 
-                       border border-[#598185]/40 dark:border-[#86cb92]/40 text-left text-sm 
+            className={`w-full h-10 pl-3 pr-8 rounded-lg bg-white/60 dark:bg-[#1c1b2f]/60 
+                       border text-left text-sm 
                        text-[#404e7c] dark:text-[#d0d2e5] flex items-center justify-between
-                       focus:outline-none focus:ring-2 focus:ring-[#86cb92] transition"
+                       focus:outline-none focus:ring-2 transition ${
+                         isInvalid
+                           ? 'border-red-500 dark:border-red-400 focus:ring-red-500'
+                           : 'border-[#598185]/40 dark:border-[#86cb92]/40 focus:ring-[#86cb92]'
+                       }`}
           >
             <span>{value || label?.slice(0,2)}</span>
             <ChevronDownIcon className="w-4 h-4 text-[#404e7c] dark:text-[#d0d2e5]" />
@@ -277,6 +408,14 @@ function GeoSelect({ label, value, onChange, tooltip }) {
 }
 
 function VisitDurationRange({ label, minValue, maxValue, onMinChange, onMaxChange, tooltip }) {
+  // Calculate if there's a validation issue - only show error if max < min
+  const hasValidationIssue = maxValue < minValue || minValue < 5 || maxValue < 5;
+  const validationMessage = maxValue < minValue 
+    ? "Max cannot be smaller than min" 
+    : (minValue < 5 || maxValue < 5) 
+      ? "Both values must be at least 5 seconds" 
+      : "";
+
   return (
     <div className="flex flex-col">
       {label && (
@@ -301,26 +440,42 @@ function VisitDurationRange({ label, minValue, maxValue, onMinChange, onMaxChang
           placeholder="Min"
           value={minValue}
           onChange={onMinChange}
-          className="h-10 px-3 border border-[#598185] dark:border-[#86cb92] rounded-lg bg-white/60 dark:bg-[#1c1b2f]/60
-                    focus:outline-none focus:ring-2 focus:ring-[#86cb92] transition text-center"
+          min="5"
+          className={`h-10 px-3 border rounded-lg bg-white/60 dark:bg-[#1c1b2f]/60
+                    focus:outline-none focus:ring-2 transition text-center ${
+                      minValue < 5
+                        ? 'border-red-500 dark:border-red-400 focus:ring-red-500' 
+                        : 'border-[#598185] dark:border-[#86cb92] focus:ring-[#86cb92]'
+                    }`}
         />
         <input
           type="number"
           placeholder="Max"
           value={maxValue}
           onChange={onMaxChange}
-          className="h-10 px-3 border border-[#598185] dark:border-[#86cb92] rounded-lg bg-white/60 dark:bg-[#1c1b2f]/60
-                    focus:outline-none focus:ring-2 focus:ring-[#86cb92] transition text-center"
+          min="5"
+          className={`h-10 px-3 border rounded-lg bg-white/60 dark:bg-[#1c1b2f]/60
+                    focus:outline-none focus:ring-2 transition text-center ${
+                      hasValidationIssue && maxValue < minValue
+                        ? 'border-red-500 dark:border-red-400 focus:ring-red-500' 
+                        : maxValue < 5
+                        ? 'border-red-500 dark:border-red-400 focus:ring-red-500'
+                        : 'border-[#598185] dark:border-[#86cb92] focus:ring-[#86cb92]'
+                    }`}
         />
       </div>
-      <div className="text-xs text-[#598185] dark:text-[#86cb92] text-center mt-1">
-        {minValue} - {maxValue} seconds
+      <div className={`text-xs text-center mt-1 ${
+        hasValidationIssue 
+          ? 'text-red-600 dark:text-red-400' 
+          : 'text-[#598185] dark:text-[#86cb92]'
+      }`}>
+        {hasValidationIssue ? validationMessage : `${minValue} - ${maxValue} seconds`}
       </div>
     </div>
   )
 }
 
-export function TimeSelect({ label, value = '', onChange }) {
+export function TimeSelect({ label, value = '', onChange, isInvalid = false, validationMessage = '' }) {
   const [hour = '', minute = ''] = value.split(':')
   const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
   const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
@@ -328,7 +483,11 @@ export function TimeSelect({ label, value = '', onChange }) {
   return (
     <div className="flex flex-col">
       {label && (
-        <label className="block text-sm font-medium text-[#404e7c] dark:text-[#d0d2e5] mb-1">
+        <label className={`block text-sm font-medium mb-1 ${
+          isInvalid 
+            ? 'text-red-600 dark:text-red-400' 
+            : 'text-[#404e7c] dark:text-[#d0d2e5]'
+        }`}>
           {label}
         </label>
       )}
@@ -338,14 +497,21 @@ export function TimeSelect({ label, value = '', onChange }) {
           value={hour}
           onChange={(h) => onChange(`${h}:${minute}`)}
           options={hours}
+          isInvalid={isInvalid}
         />
         <TimeListbox
           label="MM"
           value={minute}
           onChange={(m) => onChange(`${hour}:${m}`)}
           options={minutes}
+          isInvalid={isInvalid}
         />
       </div>
+      {isInvalid && validationMessage && (
+        <div className="text-xs text-red-600 dark:text-red-400 text-center mt-1">
+          {validationMessage}
+        </div>
+      )}
     </div>
   )
 }
@@ -358,19 +524,18 @@ const INITIAL_DATA = {
   bounceRate: 40,
   concurrent: 5,
   scrolling: true,
-  quality: 75,
-  priority: 1,
   organic: 60,
   headfulPercentage: 50, // Percentage of sessions that should run with headful browser (0-100)
   desktopPercentage: 70, // Percentage of sessions that should use desktop devices (0-100)
   totalSessions: '', // Total number of sessions to generate (empty = unlimited)
   scheduling: false,
-  startTime: '',
+  startDate: getTodayDate(),
+  endDate: getTodayDate(),
+  startTime: getInitialStartTime(),
   endTime: '',
   social: { Facebook: true, Twitter: true, Instagram: false, LinkedIn: false },
   custom: '',
   geo: 'Global',
-  device: 'Desktop',
   notes: '',
   adSelectors: '', // Comma-separated list of CSS selectors for ads to be clicked
   adsXPath: '', // Comma-separated list of X-path expressions for Google Ads containers
@@ -471,8 +636,6 @@ export default function TrafficSettings() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [location.pathname]);
-
-  const socials = Object.keys(data.social)
   
   // Optimized change handlers - single functions that don't recreate
   const handleChange = useCallback((e) => {
@@ -498,21 +661,155 @@ export default function TrafficSettings() {
     }));
   }, []);
 
+  // Enhanced visit duration handlers - only validate min, show error for max
+  const handleVisitDurationMinChange = useCallback((e) => {
+    const value = Number(e.target.value);
+    setData((d) => ({
+      ...d, 
+      visitDurationMin: Math.max(5, value) // Only ensure minimum is at least 5
+    }));
+  }, []);
+
+  const handleVisitDurationMaxChange = useCallback((e) => {
+    const value = Number(e.target.value);
+    setData((d) => ({
+      ...d, 
+      visitDurationMax: Math.max(5, value) // Only ensure maximum is at least 5
+    }));
+  }, []);
+
+  // Enhanced time selection handlers - only validate start time, show error for end time
+  const handleStartTimeChange = useCallback((value) => {
+    setData(d => ({ ...d, startTime: value }));
+  }, []);
+
+  const handleEndTimeChange = useCallback((value) => {
+    setData(d => ({ ...d, endTime: value }));
+  }, []);
+
+  // Date selection handlers
+  const handleStartDateChange = useCallback((e) => {
+    const { value } = e.target;
+    setData(d => {
+      const newData = { ...d, startDate: value };
+      
+      // If end date is before new start date, update end date to match start date
+      if (d.endDate && new Date(d.endDate + 'T00:00:00') < new Date(value + 'T00:00:00')) {
+        newData.endDate = value;
+      }
+      
+      return newData;
+    });
+  }, []);
+
+  const handleEndDateChange = useCallback((e) => {
+    const { value } = e.target;
+    setData(d => ({ ...d, endDate: value }));
+  }, []);
+
+  // Enhanced date validation with dependency logic
+  const getDateValidation = useCallback(() => {
+    if (!data.scheduling || !data.startDate || !data.endDate) {
+      return { 
+        isStartInvalid: false, 
+        isEndInvalid: false, 
+        startMessage: '', 
+        endMessage: '' 
+      };
+    }
+
+    const startDate = new Date(data.startDate + 'T00:00:00');
+    const endDate = new Date(data.endDate + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time for date comparison
+
+    let isStartInvalid = false;
+    let isEndInvalid = false;
+    let startMessage = '';
+    let endMessage = '';
+
+    // Check if start date is in the past
+    if (startDate < today) {
+      isStartInvalid = true;
+      startMessage = 'Start date cannot be in the past';
+    }
+
+    // Check if end date is before start date
+    if (endDate < startDate) {
+      isEndInvalid = true;
+      endMessage = 'End date cannot be before start date';
+    }
+
+    return { isStartInvalid, isEndInvalid, startMessage, endMessage };
+  }, [data.scheduling, data.startDate, data.endDate]);
+
+  // Helper function to check time validation
+  const getTimeValidation = useCallback(() => {
+    if (!data.scheduling || !data.startTime || !data.endTime || !data.startDate || !data.endDate) {
+      return { isStartInvalid: false, isEndInvalid: false, message: '' };
+    }
+
+    // Parse dates and times
+    const startDate = new Date(`${data.startDate}T${data.startTime}:00`);
+    const endDate = new Date(`${data.endDate}T${data.endTime}:00`);
+    const now = new Date();
+    
+    // Check if start date/time is in the past
+    if (startDate <= now) {
+      return { 
+        isStartInvalid: true, 
+        isEndInvalid: false, 
+        message: 'Start date/time must be in the future' 
+      };
+    }
+    
+    // Check if end date/time is before or equal to start date/time
+    if (endDate <= startDate) {
+      return { 
+        isStartInvalid: false, 
+        isEndInvalid: true, 
+        message: 'End date/time cannot be earlier than start date/time' 
+      };
+    }
+    
+    // Check minimum duration (10 minutes)
+    const durationMinutes = (endDate - startDate) / (1000 * 60);
+    if (durationMinutes < 10) {
+      return { 
+        isStartInvalid: false, 
+        isEndInvalid: true, 
+        message: 'Duration must be at least 10 minutes' 
+      };
+    }
+
+    return { isStartInvalid: false, isEndInvalid: false, message: '' };
+  }, [data.scheduling, data.startDate, data.endDate, data.startTime, data.endTime]);
+
   // Validation function (memoized)
   const validate = useCallback(() => {
     if (!data.url || !/^https?:\/\/.+/.test(data.url)) return 'Valid URL required'
     if (data.visitDurationMin < 5) return 'Minimum visit duration must be at least 5 seconds'
     if (data.visitDurationMax < 5) return 'Maximum visit duration must be at least 5 seconds'
-    if (data.visitDurationMin >= data.visitDurationMax) return 'Maximum visit duration must be greater than minimum'
+    if (data.visitDurationMax < data.visitDurationMin) return 'Maximum visit duration cannot be smaller than minimum visit duration'
     if (data.concurrent < 1) return 'Concurrent sessions must be at least 1'
     if (data.totalSessions && data.totalSessions < 1) return 'Total sessions must be at least 1 or empty for unlimited'
-    if (data.quality < 1 || data.quality > 100) return 'Quality must be 1-100'
-    if (data.priority < 1 || data.priority > 10) return 'Priority must be 1-10'
     if (data.organic < 0 || data.organic > 100) return 'Organic % must be 0-100'
     if (data.desktopPercentage < 0 || data.desktopPercentage > 100) return 'Desktop % must be 0-100'
-    if (data.scheduling && (!data.startTime || !data.endTime)) return 'Set start and end time'
+    
+    // Use validation helpers for scheduling
+    if (data.scheduling) {
+      if (!data.startDate || !data.endDate || !data.startTime || !data.endTime) return 'Set both start and end date/time for scheduling'
+      
+      const dateValidation = getDateValidation();
+      if (dateValidation.isStartInvalid) return dateValidation.startMessage;
+      if (dateValidation.isEndInvalid) return dateValidation.endMessage;
+      
+      const timeValidation = getTimeValidation();
+      if (timeValidation.isStartInvalid || timeValidation.isEndInvalid) return timeValidation.message;
+    }
+    
     return ''
-  }, [data])
+  }, [data, getDateValidation, getTimeValidation])
 
   // Add campaign with optimized state management
   const handleSubmit = useCallback(async (e) => {
@@ -543,7 +840,13 @@ export default function TrafficSettings() {
 
   // Reset form with optimized state management
   const handleReset = useCallback(() => {
-    setData(INITIAL_DATA)
+    setData({
+      ...INITIAL_DATA,
+      startDate: getTodayDate(),
+      endDate: getTodayDate(),
+      startTime: getInitialStartTime(),
+      endTime: ''
+    })
     setError('')
     setSuccess('')
   }, [])
@@ -656,20 +959,21 @@ export default function TrafficSettings() {
                 
                 <span className="font-medium text-[#260f26] dark:text-[#86cb92] mb-2 block pr-16 sm:pr-20 break-all">{c.url}</span>
                 <div className="text-sm text-[#404e7c] dark:text-[#d0d2e5] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1">
-                  <span>Quality: {c.quality}%</span>
-                  <span>Duration: {(() => {
-                    const minDuration = c.visitDurationMin || c.visitDuration || 30;
-                    const maxDuration = c.visitDurationMax || c.visitDuration || 30;
-                    return minDuration === maxDuration ? `${minDuration}s` : `${minDuration}-${maxDuration}s`;
-                  })()}</span>
+                  <span>Organic: {c.organic}%</span>
+                  <span>Duration: {formatDuration(c)}</span>
                   <span>Sessions: {c.concurrent}</span>
                   <span>Bounce: {c.bounceRate}%</span>
                   {c.totalSessions && <span>Total: {c.totalSessions}</span>}
                   {c.headfulPercentage !== undefined && <span>Headful: {c.headfulPercentage}%</span>}
                   {c.desktopPercentage !== undefined && <span>Desktop: {c.desktopPercentage}%</span>}
                   {c.geo && c.geo !== 'Global' && <span>Geo: {c.geo}</span>}
-                  {c.device && c.device !== 'Desktop' && <span>Device: {c.device}</span>}
-                  {c.scheduling && <span>Schedule: {c.startTime}–{c.endTime}</span>}
+                  {c.scheduling && (
+                    <span>
+                      Schedule: {c.startDate && c.startDate !== getTodayDate() ? `${c.startDate} ` : ''}
+                      {c.startTime}–{c.endTime}
+                      {c.endDate && c.endDate !== c.startDate ? ` to ${c.endDate}` : ''}
+                    </span>
+                  )}
                   {c.adSelectors && <span>CSS Ads: {c.adSelectors.split(',').length} selectors</span>}
                   {c.adsXPath && <span>XPath: {c.adsXPath.split(',').length} expressions</span>}
                 </div>
@@ -681,108 +985,6 @@ export default function TrafficSettings() {
       </motion.section>
     );
   }
-
-  // Memoized form sections for better performance
-  const formSections = useMemo(() => ({
-    basic: (
-      <div className="traffic-form-section">
-        <h3 className="traffic-form-section-title">Basic Settings</h3>
-        <div className="traffic-form-grid">
-          <div className="traffic-form-group">
-            <label htmlFor="name" className="traffic-form-label">Campaign Name</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={data.name}
-              onChange={handleChange}
-              placeholder="Enter campaign name"
-              className="traffic-form-input"
-            />
-          </div>
-          <div className="traffic-form-group">
-            <label htmlFor="targetUrl" className="traffic-form-label">Target URL</label>
-            <input
-              type="url"
-              id="targetUrl"
-              name="targetUrl"
-              value={data.targetUrl}
-              onChange={handleChange}
-              placeholder="https://example.com"
-              className="traffic-form-input"
-            />
-          </div>
-        </div>
-      </div>
-    ),
-    traffic: (
-      <div className="traffic-form-section">
-        <h3 className="traffic-form-section-title">Traffic Configuration</h3>
-        <div className="traffic-form-grid">
-          <div className="traffic-form-group">
-            <label htmlFor="sessionsPerHour" className="traffic-form-label">
-              Sessions per Hour: {data.sessionsPerHour}
-            </label>
-            <input
-              type="range"
-              id="sessionsPerHour"
-              name="sessionsPerHour"
-              min="1"
-              max="1000"
-              value={data.sessionsPerHour}
-              onChange={handleSliderChange}
-              className="traffic-form-slider"
-            />
-          </div>
-          <div className="traffic-form-group">
-            <label htmlFor="sessionDuration" className="traffic-form-label">
-              Session Duration (minutes): {data.sessionDuration}
-            </label>
-            <input
-              type="range"
-              id="sessionDuration"
-              name="sessionDuration"
-              min="1"
-              max="30"
-              value={data.sessionDuration}
-              onChange={handleSliderChange}
-              className="traffic-form-slider"
-            />
-          </div>
-          <div className="traffic-form-group">
-            <label htmlFor="bounceRate" className="traffic-form-label">
-              Bounce Rate (%): {data.bounceRate}
-            </label>
-            <input
-              type="range"
-              id="bounceRate"
-              name="bounceRate"
-              min="0"
-              max="100"
-              value={data.bounceRate}
-              onChange={handleSliderChange}
-              className="traffic-form-slider"
-            />
-          </div>
-          <div className="traffic-form-group">
-            <label htmlFor="pagesPerSession" className="traffic-form-label">
-              Pages per Session: {data.pagesPerSession}
-            </label>
-            <input
-              type="range"
-              id="pagesPerSession"
-              name="pagesPerSession"
-              min="1"
-              max="20"
-              value={data.pagesPerSession}
-              onChange={handleSliderChange}
-              className="traffic-form-slider"
-            />
-          </div>
-        </div>
-      </div>
-    )
-  }), [data, handleChange, handleSliderChange, handleCheckboxChange, handleSocialChange]);
 
   return (
     <motion.div
@@ -853,82 +1055,81 @@ export default function TrafficSettings() {
           variants={sectionVariants}
           custom={2}
         >
-          {[
+          <AnimatedField index={0}>
             <Input
-              key="url"
               label="Target URL"
               name="url"
               placeholder="https://example.com"
               value={data.url}
               onChange={handleChange}
               required
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={1}>
             <VisitDurationRange
-              key="visitDuration"
               label="Visit Duration Range (sec)"
               minValue={data.visitDurationMin}
               maxValue={data.visitDurationMax}
-              onMinChange={(e) => setData((d) => ({ ...d, visitDurationMin: Number(e.target.value) }))}
-              onMaxChange={(e) => setData((d) => ({ ...d, visitDurationMax: Number(e.target.value) }))}
+              onMinChange={handleVisitDurationMinChange}
+              onMaxChange={handleVisitDurationMaxChange}
               tooltip="Set a range for visit duration to simulate realistic user behavior. Each session will randomly select a duration within this range."
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={2}>
             <Input
-              key="delay"
               label="Delay Between Visits (sec)"
               name="delay"
               type="number"
               value={data.delay}
               onChange={handleChange}
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={3}>
             <Slider
-              key="bounce"
               label="Bounce Rate (%)"
               value={data.bounceRate}
               onChange={handleSliderChange}
               name="bounceRate"
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={4}>
             <Input
-              key="concurrent"
               label="Concurrent Sessions"
               name="concurrent"
               type="number"
               value={data.concurrent}
               onChange={handleChange}
               tooltip="Number of browser sessions running simultaneously"
-            />,
-            <div key="scrolling" className="flex items-center space-x-4 mt-4 sm:mt-6">
+            />
+          </AnimatedField>
+
+          <AnimatedField index={5}>
+            <div className="flex items-center space-x-4 mt-4 sm:mt-6">
               <Switch
                 checked={data.scrolling}
                 onChange={handleCheckboxChange}
                 name="scrolling"
                 label="Enable Scrolling"
               />
-            </div>,
-            // <Slider
-            //   key="quality"
-            //   label="Quality (1–100)"
-            //   value={data.quality}
-            //   onChange={(e) =>
-            //     setData((d) => ({ ...d, quality: Number(e.target.value) }))
-            //   }
-            // />,
+            </div>
+          </AnimatedField>
+
+          <AnimatedField index={6}>
             <Slider
-              key="headful"
               label="Headful Browser Sessions (%)"
               value={data.headfulPercentage}
               onChange={handleSliderChange}
               name="headfulPercentage"
-              tooltip="Percentage of sessions that will run with visible browser windows (useful for debugging). 0% = all headless, 100% = all visible. "
-            />,
-            // <Input
-            //   key="priority"
-            //   label="Priority (1–10)"
-            //   type="number"
-            //   value={data.priority}
-            //   onChange={handleChange('priority')}
-            // />,
+              tooltip="Percentage of sessions that will run with visible browser windows (useful for debugging). 0% = all headless, 100% = all visible."
+            />
+          </AnimatedField>
+
+          <AnimatedField index={7}>
             <Input
-              key="totalSessions"
               label="Total Traffic Sessions"
               name="totalSessions"
               type="number"
@@ -936,71 +1137,73 @@ export default function TrafficSettings() {
               value={data.totalSessions}
               onChange={handleChange}
               tooltip="Total number of sessions to generate. Leave empty to run continuously until manually stopped."
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={8}>
             <Input
-              key="organic"
               label="Organic Traffic (%)"
               name="organic"
               type="number"
               value={data.organic}
               onChange={handleChange}
               tooltip="Percentage of sessions that will be organic (not from referral sources). The proportion (%) of traffic considered organic (i.e., unpaid, from search engines). Balances between organic and paid/social sources to mimic real-world traffic composition."
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={9}>
             <Slider
-              key="desktop"
               label="Desktop Traffic (%)"
               value={data.desktopPercentage}
               onChange={handleSliderChange}
               name="desktopPercentage"
               tooltip="Percentage of sessions that will use desktop devices. 0% = all mobile, 100% = all desktop. Remaining percentage will be mobile traffic."
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={10}>
             <GeoSelect
-              key="geo"
               label="Geographic Targeting"
               value={data.geo}
               onChange={(value) => setData((d) => ({ ...d, geo: value }))}
               tooltip="Select the geographic location for traffic simulation. 'Global' targets all regions, while specific countries focus traffic from that location."
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={11}>
             <Input
-              key="adSelectors"
               label="CSS Ad Selectors"
               name="adSelectors"
               placeholder=".GoogleActiveViewElement, .ad-class, #ad-iframe"
               value={data.adSelectors}
               onChange={handleChange}
               tooltip="Comma-separated list of CSS selectors for ads to be clicked. Leave empty for default selectors."
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={12}>
             <Input
-              key="adsXPath"
               label="Google Ads Container X-Paths"
               name="adsXPath"
               placeholder="//div[@data-google-av-cxn], //ins[@class='adsbygoogle'], //div[contains(@class, 'GoogleActiveViewElement')]"
               value={data.adsXPath}
               onChange={handleChange}
               tooltip="Comma-separated list of X-Path expressions for Google Ads container elements. Examples: //div[@data-google-av-cxn], //ins[@class='adsbygoogle'], //div[contains(@class, 'GoogleActiveViewElement')]. Only works in headful mode."
-            />,
+            />
+          </AnimatedField>
+
+          <AnimatedField index={13}>
             <Input
-              key="notes"
               label="Campaign Notes"
               name="notes"
               placeholder="Describe this campaign..."
               value={data.notes}
               onChange={handleChange}
             />
-          ].map((field, idx) => (
-            <motion.div
-              key={idx}
-              variants={fieldVariants}
-              custom={idx}
-              initial="hidden"
-              animate="visible"
-            >
-              {field}
-            </motion.div>
-          ))}
+          </AnimatedField>
         </motion.div>
 
-        {/* Scheduling */}
+        {/* Enhanced Scheduling Section */}
         <motion.div
           className="pt-4 sm:pt-6 border-t border-[#598185]/20 dark:border-[#86cb92]/20 space-y-4"
           variants={sectionVariants}
@@ -1019,21 +1222,33 @@ export default function TrafficSettings() {
             <AnimatePresence>
               {data.scheduling && (
                 <motion.div
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2"
+                  className="space-y-4 mt-4"
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 12 }}
                   transition={{ type: "spring", stiffness: 120, damping: 20 }}
                 >
-                  <TimeSelect
-                    label="Start Time"
-                    value={data.startTime}
-                    onChange={val => setData(d => ({ ...d, startTime: val }))}
+                  {/* Enhanced Date Selection with Dependencies */}
+                  <DateSelectionSection 
+                    data={data}
+                    handleStartDateChange={handleStartDateChange}
+                    handleEndDateChange={handleEndDateChange}
+                    getDateValidation={getDateValidation}
                   />
-                  <TimeSelect
-                    label="End Time"
-                    value={data.endTime}
-                    onChange={val => setData(d => ({ ...d, endTime: val }))}
+                  
+                  {/* Time Selection */}
+                  <TimeSelectionSection 
+                    data={data}
+                    handleStartTimeChange={handleStartTimeChange}
+                    handleEndTimeChange={handleEndTimeChange}
+                    getTimeValidation={getTimeValidation}
+                  />
+                  
+                  {/* Duration Display */}
+                  <SchedulingDurationDisplay 
+                    data={data}
+                    dateValidation={getDateValidation()}
+                    timeValidation={getTimeValidation()}
                   />
                 </motion.div>
               )}
@@ -1054,7 +1269,7 @@ export default function TrafficSettings() {
             <div className='px-0'>
               <Label>Social Media</Label>
               <div className="space-y-2 mt-2 ml-2 max-w-10">
-                {socials.map((src, idx) => (
+                {Object.keys(data.social).map((src, idx) => (
                   <motion.div
                     key={src}
                     initial={{ opacity: 0, x: -8 }}

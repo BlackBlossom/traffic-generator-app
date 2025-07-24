@@ -13,7 +13,7 @@ export default function Layout({ children }) {
         <TitleBar />
       </div>
       {/*  */}
-      <div className="flex relative flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0">
         {/* Fixed Sidebar */}
         <div className="flex-shrink-0 z-30">
           <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
@@ -29,7 +29,7 @@ export default function Layout({ children }) {
             <Topbar collapsed={collapsed} />
           </div>
           {/* Scrollable main content */}
-          <main className="flex-1 min-h-0 mt-24 overflow-y-auto p-6 bg-[#f7f5ff] dark:bg-[#333762] rounded-tl-xl transition-colors duration-300 main-scrollable">
+          <main className="flex-1 relative min-h-0 mt-24 overflow-y-auto p-6 bg-[#f7f5ff] dark:bg-[#333762] rounded-tl-xl transition-colors duration-300 main-scrollable">
             {children}
           </main>
         </div>

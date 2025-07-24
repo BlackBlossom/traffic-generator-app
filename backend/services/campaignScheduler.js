@@ -18,8 +18,9 @@ class CampaignScheduler {
       
       // Load all scheduled campaigns from database
       const scheduledCampaigns = await Campaign.find({ 
-        isScheduled: true, 
-        isActive: false 
+        scheduling: true, 
+        isActive: false,
+        status: 'scheduled'
       });
 
       console.log(`📅 Found ${scheduledCampaigns.length} scheduled campaigns`);
@@ -28,6 +29,9 @@ class CampaignScheduler {
       for (const campaign of scheduledCampaigns) {
         await this.scheduleCampaign(campaign);
       }
+
+      // Set up periodic check for campaigns that need to start/stop
+      this.schedulePeriodicCheck();
 
       // Clean up completed campaigns every hour
       this.scheduleCleanup();
@@ -43,19 +47,21 @@ class CampaignScheduler {
   // Schedule a new campaign
   async scheduleCampaign(campaign) {
     try {
-      if (!campaign.scheduledAt) {
-        throw new Error('Campaign must have a scheduledAt time');
+      // Use the virtual startDateTime property
+      const scheduledTime = campaign.startDateTime;
+      
+      if (!scheduledTime) {
+        throw new Error('Campaign must have valid startDate and startTime');
       }
 
-      const scheduledTime = new Date(campaign.scheduledAt);
       const now = new Date();
 
       // Check if scheduled time is in the future
       if (scheduledTime <= now) {
         console.log(`⚠️ Campaign ${campaign._id} scheduled time has passed, marking as expired`);
         await Campaign.findByIdAndUpdate(campaign._id, { 
-          isScheduled: false,
-          status: 'expired'
+          status: 'expired',
+          isActive: false
         });
         return;
       }
@@ -95,6 +101,11 @@ class CampaignScheduler {
     }
   }
 
+  // Schedule a newly created campaign
+  async scheduleNewCampaign(campaign) {
+    return this.scheduleCampaign(campaign);
+  }
+
   // Execute a scheduled campaign
   async executeCampaign(campaignId) {
     try {
@@ -110,9 +121,8 @@ class CampaignScheduler {
       // Update campaign status to active
       await Campaign.findByIdAndUpdate(campaignId, {
         isActive: true,
-        isScheduled: false,
         status: 'running',
-        startedAt: new Date()
+        'analytics.startedAt': new Date()
       });
 
       // Log the execution start
@@ -122,21 +132,15 @@ class CampaignScheduler {
       );
 
       // Import and start the traffic generation
-      const { generateTraffic } = require('../traffic-worker/traffic');
+      const { campaignTrafficController } = require('../controllers/campaignTrafficController');
       
-      // Start traffic generation in background
-      generateTraffic({
-        campaignId: campaignId.toString(),
-        url: campaign.url,
-        sessions: campaign.sessions,
-        duration: campaign.duration,
-        deviceTypes: campaign.deviceTypes,
-        referralSources: campaign.referralSources,
-        geoTargeting: campaign.geoTargeting,
-        adSelectors: campaign.adSelectors,
-        adsXPath: campaign.adsXPath,
-        isScheduled: true // Flag to indicate this is a scheduled execution
-      });
+      // Get campaign details for traffic generation
+      const updatedCampaign = await Campaign.findById(campaignId);
+      
+      // Start traffic generation
+      // Note: For scheduled campaigns, we don't have WebSocket connection
+      // Consider implementing a different approach for scheduled campaigns
+      campaignTrafficController(updatedCampaign.toObject(), null, null);
 
       // Remove from scheduled tasks
       this.removeScheduledTask(campaignId.toString());
@@ -218,6 +222,45 @@ class CampaignScheduler {
     return `${minutes} ${hours} ${dayOfMonth} ${month} *`;
   }
 
+  // Set up periodic check for campaigns that need to start or stop
+  schedulePeriodicCheck() {
+    // Check every minute for campaigns that need to start or stop
+    cron.schedule('* * * * *', async () => {
+      await this.checkCampaigns();
+    }, {
+      scheduled: true,
+      timezone: "UTC"
+    });
+
+    console.log('⏰ Scheduled periodic campaign checks (every minute)');
+  }
+
+  // Check for campaigns that need to start or stop
+  async checkCampaigns() {
+    try {
+      // Check for campaigns that should start
+      const campaignsToStart = await Campaign.findCampaignsToStart();
+      for (const campaign of campaignsToStart) {
+        console.log(`🚀 Auto-starting scheduled campaign: ${campaign._id}`);
+        await this.executeCampaign(campaign._id);
+      }
+
+      // Check for campaigns that should stop
+      const campaignsToStop = await Campaign.findCampaignsToStop();
+      for (const campaign of campaignsToStop) {
+        console.log(`⏹️ Auto-stopping scheduled campaign: ${campaign._id}`);
+        await Campaign.findByIdAndUpdate(campaign._id, {
+          isActive: false,
+          status: 'completed',
+          'analytics.completedAt': new Date()
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Error during periodic campaign check:', error);
+    }
+  }
+
   // Schedule cleanup of completed/expired campaigns
   scheduleCleanup() {
     // Run cleanup every hour at minute 0
@@ -236,22 +279,29 @@ class CampaignScheduler {
     try {
       const now = new Date();
       
-      // Find expired scheduled campaigns
+      // Find expired scheduled campaigns (where start time has passed but never started)
       const expiredCampaigns = await Campaign.find({
-        isScheduled: true,
-        scheduledAt: { $lt: now }
+        scheduling: true,
+        isActive: false,
+        status: 'scheduled',
+        $expr: {
+          $and: [
+            { $ne: ['$startDate', ''] },
+            { $ne: ['$startTime', ''] },
+            { $lt: [{ $dateFromString: { dateString: { $concat: ['$startDate', 'T', '$startTime', ':00'] } } }, now] }
+          ]
+        }
       });
 
       for (const campaign of expiredCampaigns) {
         console.log(`🧹 Cleaning up expired campaign: ${campaign._id}`);
         
         // Cancel the scheduled task
-        await this.cancelScheduledCampaign(campaign._id);
+        this.removeScheduledTask(campaign._id.toString());
         
         // Mark as expired
         await Campaign.findByIdAndUpdate(campaign._id, {
-          status: 'expired',
-          isScheduled: false
+          status: 'expired'
         });
       }
 

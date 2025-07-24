@@ -26,7 +26,43 @@ exports.createCampaign = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const body = { ...req.body };
-    body.isActive = !body.scheduling; // isActive: true if no scheduling, false if scheduled
+    
+    // Validate scheduling if enabled
+    if (body.scheduling) {
+      const { startDate, startTime, endDate, endTime } = body;
+      
+      // Check required scheduling fields
+      if (!startDate || !startTime || !endDate || !endTime) {
+        return res.status(400).json({ 
+          error: 'All scheduling fields (startDate, startTime, endDate, endTime) are required when scheduling is enabled' 
+        });
+      }
+      
+      // Validate date/time format and logic
+      const startDateTime = new Date(`${startDate}T${startTime}:00`);
+      const endDateTime = new Date(`${endDate}T${endTime}:00`);
+      const now = new Date();
+      
+      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+        return res.status(400).json({ error: 'Invalid date/time format' });
+      }
+      
+      if (startDateTime <= now) {
+        return res.status(400).json({ error: 'Start date/time must be in the future' });
+      }
+      
+      if (endDateTime <= startDateTime) {
+        return res.status(400).json({ error: 'End date/time must be after start date/time' });
+      }
+      
+      // Set campaign as inactive for scheduled campaigns
+      body.isActive = false;
+      body.status = 'scheduled';
+    } else {
+      // For immediate campaigns
+      body.isActive = true;
+      body.status = 'active';
+    }
 
     const campaign = new Campaigns(body);
     await campaign.save();
@@ -34,6 +70,7 @@ exports.createCampaign = async (req, res) => {
     user.campaigns.push(campaign._id);
     await user.save();
 
+    // Handle immediate vs scheduled campaigns
     if (!campaign.scheduling && campaign.isActive) {
       // Initialize campaign analytics in database
       await campaignAnalytics.initializeCampaignAnalytics(campaign._id);
@@ -49,6 +86,12 @@ exports.createCampaign = async (req, res) => {
         campaign.isActive = false; // Ensure campaign is marked inactive
         await campaign.save(); // Save the campaign state
         return res.status(202).json({ message: 'Campaign created but not started (WebSocket not connected).' });
+      }
+    } else if (campaign.scheduling) {
+      // For scheduled campaigns, register with scheduler
+      const campaignScheduler = require('../services/campaignScheduler');
+      if (campaignScheduler.isInitialized) {
+        await campaignScheduler.scheduleNewCampaign(campaign);
       }
     }
 
