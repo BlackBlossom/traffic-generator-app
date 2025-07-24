@@ -7,6 +7,48 @@ const SocialSchema = new mongoose.Schema({
   LinkedIn: { type: Boolean, required: true }
 }, { _id: false });
 
+// Define the Cookie schema
+const CookieSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    unique : true, // Ensure cookie names are unique per campaign
+    required: true,
+    trim: true
+  },
+  value: {
+    type: String,
+    required: true
+  },
+  domain: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  path: {
+    type: String,
+    default: '/',
+    trim: true
+  },
+  expires: {
+    type: Number, // Unix timestamp in milliseconds
+    default: null
+  },
+  httpOnly: {
+    type: Boolean,
+    default: false
+  },
+  secure: {
+    type: Boolean,
+    default: false
+  },
+  sameSite: {
+    type: String,
+    enum: ['Strict', 'Lax', 'None'],
+    default: 'Lax'
+  }
+}, { _id: false }); // Disable _id for subdocuments
+
+
 const CampaignSchema = new mongoose.Schema({
   url: {
     type: String,
@@ -145,6 +187,19 @@ const CampaignSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // Add cookies array field
+  cookies: {
+    type: [CookieSchema],
+    default: [],
+    validate: {
+      validator: function(cookies) {
+        // Optional: Limit number of cookies per campaign
+        return cookies.length <= 50;
+      },
+      message: 'Maximum 50 cookies allowed per campaign'
+    }
+  },
+
   // Campaign Analytics - stored permanently in DB
   analytics: {
     totalSessions: { type: Number, default: 0 },
