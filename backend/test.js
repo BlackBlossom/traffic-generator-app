@@ -189,15 +189,22 @@
 //     console.log(response.data);
 //   });
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const UserAgent = require('user-agents');
-const winston = require('winston');
-const { KnownDevices } = require('puppeteer');
+// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// const puppeteer = require('puppeteer-extra');
+// const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+// const UserAgent = require('user-agents');
+// const winston = require('winston');
+// const { KnownDevices } = require('puppeteer');
 
-console.log(Object.keys(KnownDevices));
+// console.log(Object.keys(KnownDevices));
+require('dotenv').config();
 
+const PROXY_HOST = process.env.PROXY_HOST || 'gw.dataimpulse.com';
+const PROXY_PORT = process.env.PROXY_PORT || '823';
+const PROXY_USER = process.env.PROXY_USER || 'b0ac12156e5e63a82bbe';
+const PROXY_PASS = process.env.PROXY_PASS || 'c16003108e64d017';
+const PROXY = `${PROXY_HOST}:${PROXY_PORT}`;
+console.log('Using proxy:', PROXY);
 
 // === Proxy from your image ===
 // Login : b0ac12156e5e63a82bbe
