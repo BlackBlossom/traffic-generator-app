@@ -15,6 +15,9 @@ import {
   CheckCircleIcon,
   TrashIcon,
   ExclamationTriangleIcon,
+  PlusIcon,
+  XMarkIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline'
 import { fieldVariants, sectionVariants } from '../animations'
 import { useUser } from '../context/UserContext'
@@ -155,6 +158,231 @@ const TimeSelectionSection = ({ data, handleStartTimeChange, handleEndTimeChange
         isInvalid={timeValidation.isEndInvalid}
         validationMessage={timeValidation.message}
       />
+    </div>
+  );
+};
+
+// Component for cookies management
+const CookiesManagementSection = ({ data, onCookiesChange }) => {
+  const [newCookie, setNewCookie] = useState({
+    name: '',
+    value: '',
+    domain: '',
+    path: '/',
+    expires: '',
+    httpOnly: false,
+    secure: false,
+    sameSite: 'Lax'
+  });
+
+  const [showAddCookie, setShowAddCookie] = useState(false);
+
+  const addCookie = () => {
+    if (!newCookie.name.trim()) return;
+    
+    const cookieToAdd = {
+      ...newCookie,
+      name: newCookie.name.trim(),
+      value: newCookie.value.trim(),
+      domain: newCookie.domain.trim(),
+      expires: newCookie.expires ? new Date(newCookie.expires).getTime() : null
+    };
+
+    onCookiesChange([...data.cookies, cookieToAdd]);
+    
+    // Reset form
+    setNewCookie({
+      name: '',
+      value: '',
+      domain: '',
+      path: '/',
+      expires: '',
+      httpOnly: false,
+      secure: false,
+      sameSite: 'Lax'
+    });
+    setShowAddCookie(false);
+  };
+
+  const removeCookie = (index) => {
+    const updatedCookies = data.cookies.filter((_, i) => i !== index);
+    onCookiesChange(updatedCookies);
+  };
+
+  const formatExpires = (timestamp) => {
+    if (!timestamp) return 'Session';
+    return new Date(timestamp).toLocaleDateString();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GlobeAltIcon className="w-5 h-5 text-[#598185] dark:text-[#86cb92]" />
+          <Label>Cookies Management</Label>
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            ({data.cookies.length}/50)
+          </span>
+        </div>
+        <motion.button
+          type="button"
+          onClick={() => setShowAddCookie(!showAddCookie)}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-[#598185] dark:bg-[#86cb92] 
+                     text-white dark:text-[#1c1b2f] rounded-lg hover:opacity-90 transition"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <PlusIcon className="w-4 h-4" />
+          Add Cookie
+        </motion.button>
+      </div>
+
+      {/* Existing Cookies List */}
+      {data.cookies.length > 0 && (
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          {data.cookies.map((cookie, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#1c1b2f]/50 
+                         rounded-lg border border-gray-200 dark:border-gray-600"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-sm text-[#404e7c] dark:text-[#d0d2e5] truncate">
+                    {cookie.name}
+                  </span>
+                  {cookie.domain && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      @{cookie.domain}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                  <span>Value: {cookie.value || 'empty'}</span>
+                  <span>Path: {cookie.path}</span>
+                  <span>Expires: {formatExpires(cookie.expires)}</span>
+                  {cookie.httpOnly && <span className="text-blue-600">HttpOnly</span>}
+                  {cookie.secure && <span className="text-green-600">Secure</span>}
+                </div>
+              </div>
+              <motion.button
+                type="button"
+                onClick={() => removeCookie(index)}
+                className="ml-2 p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 
+                           rounded transition"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </motion.button>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Cookie Form */}
+      <AnimatePresence>
+        {showAddCookie && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="border border-[#598185]/40 dark:border-[#86cb92]/40 rounded-lg p-4 bg-gray-50/50 dark:bg-[#1c1b2f]/20"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <Input
+                label="Cookie Name *"
+                value={newCookie.name}
+                onChange={(e) => setNewCookie({...newCookie, name: e.target.value})}
+                placeholder="e.g. session_id"
+              />
+              <Input
+                label="Cookie Value"
+                value={newCookie.value}
+                onChange={(e) => setNewCookie({...newCookie, value: e.target.value})}
+                placeholder="e.g. abc123"
+              />
+              <Input
+                label="Domain"
+                value={newCookie.domain}
+                onChange={(e) => setNewCookie({...newCookie, domain: e.target.value})}
+                placeholder="e.g. example.com"
+              />
+              <Input
+                label="Path"
+                value={newCookie.path}
+                onChange={(e) => setNewCookie({...newCookie, path: e.target.value})}
+                placeholder="/"
+              />
+              <Input
+                label="Expires (Date)"
+                type="datetime-local"
+                value={newCookie.expires}
+                onChange={(e) => setNewCookie({...newCookie, expires: e.target.value})}
+              />
+              <div className="space-y-2">
+                <Label>Options</Label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={newCookie.httpOnly}
+                      onChange={(e) => setNewCookie({...newCookie, httpOnly: e.target.checked})}
+                      className="rounded border-[#598185] dark:border-[#86cb92] text-[#598185] focus:ring-[#86cb92]"
+                    />
+                    <span className="text-sm text-[#404e7c] dark:text-[#d0d2e5]">HttpOnly</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={newCookie.secure}
+                      onChange={(e) => setNewCookie({...newCookie, secure: e.target.checked})}
+                      className="rounded border-[#598185] dark:border-[#86cb92] text-[#598185] focus:ring-[#86cb92]"
+                    />
+                    <span className="text-sm text-[#404e7c] dark:text-[#d0d2e5]">Secure</span>
+                  </label>
+                  <select
+                    value={newCookie.sameSite}
+                    onChange={(e) => setNewCookie({...newCookie, sameSite: e.target.value})}
+                    className="w-full h-8 px-2 border border-[#598185] dark:border-[#86cb92] rounded bg-white/60 dark:bg-[#1c1b2f]/60
+                               focus:outline-none focus:ring-2 focus:ring-[#86cb92] transition text-sm"
+                  >
+                    <option value="Strict">SameSite: Strict</option>
+                    <option value="Lax">SameSite: Lax</option>
+                    <option value="None">SameSite: None</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <motion.button
+                type="button"
+                onClick={() => setShowAddCookie(false)}
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={addCookie}
+                disabled={!newCookie.name.trim()}
+                className="px-4 py-2 text-sm bg-[#598185] dark:bg-[#86cb92] text-white dark:text-[#1c1b2f] 
+                           rounded-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Add Cookie
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -542,6 +770,7 @@ const INITIAL_DATA = {
   notes: '',
   adSelectors: '', // Comma-separated list of CSS selectors for ads to be clicked
   adsXPath: '', // Comma-separated list of X-path expressions for Google Ads containers
+  cookies: [] // Array of cookies to be set during sessions
 }
 
 // Country list for geo targeting
@@ -787,6 +1016,11 @@ export default function TrafficSettings() {
 
     return { isStartInvalid: false, isEndInvalid: false, message: '' };
   }, [data.scheduling, data.startDate, data.endDate, data.startTime, data.endTime]);
+
+  // Cookies management handler
+  const handleCookiesChange = useCallback((newCookies) => {
+    setData(d => ({ ...d, cookies: newCookies }));
+  }, []);
 
   // Validation function (memoized)
   const validate = useCallback(() => {
@@ -1257,6 +1491,18 @@ export default function TrafficSettings() {
               )}
             </AnimatePresence>
           </div>
+        </motion.div>
+
+        {/* Cookies Management Section */}
+        <motion.div
+          className="pt-4 sm:pt-6 border-t border-[#598185]/20 dark:border-[#86cb92]/20 space-y-4"
+          variants={sectionVariants}
+          custom={4}
+        >
+          <CookiesManagementSection 
+            data={data}
+            onCookiesChange={handleCookiesChange}
+          />
         </motion.div>
 
         {/* Referral Sources */}

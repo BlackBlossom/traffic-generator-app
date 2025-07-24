@@ -11,16 +11,15 @@ const SocialSchema = new mongoose.Schema({
 const CookieSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
+    required: [true, 'Cookie name is required'],
     trim: true
   },
   value: {
     type: String,
-    required: true
+    default: ''
   },
   domain: {
     type: String,
-    required: true,
     trim: true
   },
   path: {
