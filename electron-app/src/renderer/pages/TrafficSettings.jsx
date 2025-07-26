@@ -1140,7 +1140,7 @@ export default function TrafficSettings() {
   }, [user]);
 
   // --- Campaign List Section Component ---
-  function CampaignSection({ title, icon: Icon, campaigns, onDeleteClick, onStopClick, emptyText, showStop }) {
+  function CampaignSection({ title, icon: Icon, campaigns, onDeleteClick, onStopClick, emptyText, showStop, showDelete = true }) {
     return (
       <motion.section className="bg-white dark:bg-[#1c1b2f]/70 border-0 border-[#598185]/40 dark:border-[#86cb92]/40 rounded-2xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8"
         initial={{ opacity: 0, y: 24 }}
@@ -1185,13 +1185,15 @@ export default function TrafficSettings() {
                     </button>
                   )}
                   {/* Delete Button */}
-                  <button
-                    className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition order-1 sm:order-2"
-                    onClick={() => onDeleteClick(c.id || c._id)}
-                    aria-label="Delete campaign"
-                  >
-                    <TrashIcon className="w-4 h-4 text-red-600 hover:text-red-800 transition" />
-                  </button>
+                  {showDelete && (
+                    <button
+                      className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition order-1 sm:order-2"
+                      onClick={() => onDeleteClick(c.id || c._id)}
+                      aria-label="Delete campaign"
+                    >
+                      <TrashIcon className="w-4 h-4 text-red-600 hover:text-red-800 transition" />
+                    </button>
+                  )}
                 </div>
                 
                 <span className="font-medium text-[#260f26] dark:text-[#86cb92] mb-2 block pr-16 sm:pr-20 break-all">{c.url}</span>
@@ -1586,6 +1588,7 @@ export default function TrafficSettings() {
         onStopClick={handleStopCampaign}
         emptyText="No active campaigns."
         showStop={true}
+        showDelete={false}
       />
 
       {/* Scheduled Campaigns */}

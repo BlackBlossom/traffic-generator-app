@@ -124,7 +124,7 @@ export default function DebugPage() {
             Debug Console
           </h1>
           <div className="text-sm sm:text-base lg:text-lg font-medium text-[#598185] dark:text-[#d0d2e5] mt-1 sm:mt-2">
-            Live system logs, campaign monitoring, and persistent Redis logging
+            Live system logs, campaign monitoring, and persistent logging
           </div>
         </div>
         
@@ -207,7 +207,7 @@ export default function DebugPage() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-[#260f26] dark:text-[#86cb92] flex items-center gap-2 tracking-tighter">
             <SignalIcon className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8" />
-            <span className="hidden sm:inline">Campaign Monitoring (Redis-Persistent)</span>
+            <span className="hidden sm:inline">Campaign Monitoring (Persistent Logs)</span>
             <span className="sm:hidden">Campaign Monitor</span>
           </h2>
           
@@ -398,7 +398,7 @@ export default function DebugPage() {
             <InformationCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-[#71b48d] dark:text-[#86cb92] flex-shrink-0 mt-0.5" />
             <div className="space-y-1 min-w-0">
               <div className="text-sm sm:text-base text-[#404e7c] dark:text-[#b0b0c3] font-medium">
-                💡 <span className="hidden sm:inline">Auto-Selection & Redis Persistent Logging</span><span className="sm:hidden">Redis Logging</span>:
+                💡 <span className="hidden sm:inline">Auto-Selection & Persistent Logging</span>:
               </div>
               <ul className="text-xs sm:text-sm text-[#598185] dark:text-[#d0d2e5] space-y-0.5 sm:space-y-1">
                 <li className="hidden sm:list-item">• Campaign logs automatically show for your last active campaign</li>

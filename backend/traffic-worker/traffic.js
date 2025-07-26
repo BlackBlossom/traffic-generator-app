@@ -324,6 +324,47 @@ async function launchSession(params, sessionId, ws, campaignId = null, userEmail
     const page = await browser.newPage();
     await page.authenticate({ username: PROXY_USER, password: PROXY_PASS });
 
+    // INJECT COOKIES USING MODERN API
+    if (Array.isArray(params.cookies) && params.cookies.length > 0) {
+      try {
+        // Convert cookies to Puppeteer format and set them
+        const puppeteerCookies = params.cookies.map(cookie => {
+          const puppeteerCookie = {
+            name: cookie.name,
+            value: cookie.value || '',
+            domain: cookie.domain || new URL(params.url).hostname,
+            path: cookie.path || '/',
+            httpOnly: cookie.httpOnly || false,
+            secure: cookie.secure || false,
+            sameSite: cookie.sameSite || 'Lax'
+          };
+          
+          // Add expires if provided (convert timestamp to seconds)
+          if (cookie.expires && typeof cookie.expires === 'number') {
+            puppeteerCookie.expires = Math.floor(cookie.expires / 1000);
+          }
+          
+          return puppeteerCookie;
+        });
+
+        await page.setCookie(...puppeteerCookies);
+        logToWebsocket(ws, sessionId, 'debug',
+          `✅ Injected ${params.cookies.length} cookies using page.setCookie()`, 
+          campaignId, userEmail);
+        
+        // Log cookie details for debugging
+        puppeteerCookies.forEach((cookie, index) => {
+          logToWebsocket(ws, sessionId, 'debug',
+            `Cookie ${index + 1}: ${cookie.name}=${cookie.value} (domain: ${cookie.domain}, path: ${cookie.path})`, 
+            campaignId, userEmail);
+        });
+      } catch (cookieError) {
+        logToWebsocket(ws, sessionId, 'error',
+          `❌ Failed to inject cookies: ${cookieError.message}`, 
+          campaignId, userEmail);
+      }
+    }
+
     // Robust device emulation (handles unavailable descriptors)
     if (deviceType === 'Mobile') {
       const device =
