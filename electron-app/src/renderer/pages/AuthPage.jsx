@@ -231,7 +231,7 @@ export default function AuthPage() {
       setLoading(false)
       return
     }
-    localStorage.setItem('traffica_user_email', form.email)
+    localStorage.setItem('rst_user_email', form.email)
     const res = await forgotPassword()
     if (res.success || res.message?.toLowerCase().includes('otp')) {
       setSuccess('OTP sent to your email for password reset.')

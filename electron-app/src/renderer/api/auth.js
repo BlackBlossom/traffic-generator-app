@@ -25,7 +25,7 @@ export async function authFetch(url, options = {}, apiKey = null) {
   }
 
   // Use provided API key or try to get from localStorage as fallback
-  const finalApiKey = apiKey || localStorage.getItem('traffica_api_key');
+  const finalApiKey = apiKey || localStorage.getItem('rst_api_key');
   if (!finalApiKey) {
     throw new Error('No API key found. Please generate an API key first.');
   }
@@ -46,7 +46,7 @@ export async function authFetch(url, options = {}, apiKey = null) {
 
 // Helper to get email from localStorage
 function getStoredEmail() {
-  return localStorage.getItem('traffica_user_email');
+  return localStorage.getItem('rst_user_email');
 }
 
 // Registration
@@ -54,7 +54,7 @@ export async function register(name, email, password) {
   try {
     const res = await axios.post(`${API_BASE}/register`, { name, email, password });
     if (res.data) {
-      localStorage.setItem('traffica_user_email', email);
+      localStorage.setItem('rst_user_email', email);
     }
     return { success: true, ...res.data };
   } catch (error) {
@@ -80,7 +80,7 @@ export async function login(email, password) {
     const res = await axios.post(`${API_BASE}/login`, { email, password });
     // Store email in localStorage on successful login
     if (res.data && res.data.token) {
-      localStorage.setItem('traffica_user_email', email);
+      localStorage.setItem('rst_user_email', email);
     }
     return { success: true, ...res.data };
   } catch (error) {
@@ -125,10 +125,8 @@ export async function resetPassword(otp, newPassword) {
 }
 
 // Fetch User Details by Email
-// src/api/auth.js
-
 export async function getUserByEmail(token) {
-  const email = localStorage.getItem('traffica_user_email');
+  const email = localStorage.getItem('rst_user_email');
   if (!email) return { success: false, message: 'No email found in localStorage.' };
   try {
     const config = token
@@ -163,7 +161,7 @@ export async function updateUserDetails({ name, newEmail, password, token }) {
     );
     // If email was changed, update in localStorage
     if (newEmail && newEmail !== email) {
-      localStorage.setItem('traffica_user_email', newEmail);
+      localStorage.setItem('rst_user_email', newEmail);
     }
     return { success: true, ...res.data };
   } catch (error) {
@@ -218,58 +216,134 @@ export async function revokeApiKey(apiKey, token) {
   }
 }
 
-// ---Campaigns API Endpoints---
+// ---Campaigns API Endpoints--- (Now using IPC)
 
-// GET /api/users/:email/campaigns
+// GET campaigns for user
 export async function getUserCampaigns(email, apiKey) {
-  const url = `${API_BASE}/users/${encodeURIComponent(email)}/campaigns`;
-  const response = await axios.get(url, {
-    headers: getAuthHeaders(apiKey),
-  });
-  return response.data;
+  try {
+    const result = await window.electronAPI.invoke('get-user-campaigns', email);
+    if (result.success) {
+      return result.data; // Return just the campaigns array
+    } else {
+      throw new Error(result.error || 'Failed to get campaigns');
+    }
+  } catch (error) {
+    throw new Error(`Failed to get user campaigns: ${error.message}`);
+  }
 }
 
-// POST /api/users/:email/campaigns
+// CREATE new campaign
 export async function createCampaign(email, apiKey, campaignData) {
-  const url = `${API_BASE}/users/${encodeURIComponent(email)}/campaigns`;
-  const response = await axios.post(url, campaignData, {
-    headers: getAuthHeaders(apiKey)
-  });
-  return response.data;
+  try {
+    const result = await window.electronAPI.invoke('create-campaign', email, campaignData);
+    if (result.success) {
+      return result.data; // Return just the campaign object
+    } else {
+      throw new Error(result.error || 'Failed to create campaign');
+    }
+  } catch (error) {
+    throw new Error(`Failed to create campaign: ${error.message}`);
+  }
 }
 
-// PUT /api/users/:email/campaigns/:campaignId
+// UPDATE existing campaign
 export async function updateCampaign(email, campaignId, apiKey, updateData) {
-  const url = `${API_BASE}/users/${encodeURIComponent(email)}/campaigns/${campaignId}`;
-  const response = await axios.put(url, updateData, {
-    headers: getAuthHeaders(apiKey)
-  });
-  return response.data;
+  try {
+    const result = await window.electronAPI.invoke('update-campaign', email, campaignId, updateData);
+    if (result.success) {
+      return result.data; // Return just the updated campaign object
+    } else {
+      throw new Error(result.error || 'Failed to update campaign');
+    }
+  } catch (error) {
+    throw new Error(`Failed to update campaign: ${error.message}`);
+  }
 }
 
-// GET /api/users/:email/campaigns/:campaignId
+// GET single campaign
 export async function getSingleCampaign(email, campaignId, apiKey) {
-  const url = `${API_BASE}/users/${encodeURIComponent(email)}/campaigns/${campaignId}`;
-  const response = await axios.get(url, {
-    headers: getAuthHeaders(apiKey)
-  });
-  return response.data;
+  try {
+    const result = await window.electronAPI.invoke('get-campaign', email, campaignId);
+    if (result.success) {
+      return result.data; // Return just the campaign object
+    } else {
+      throw new Error(result.error || 'Failed to get campaign');
+    }
+  } catch (error) {
+    throw new Error(`Failed to get campaign: ${error.message}`);
+  }
 }
 
-// DELETE /api/users/:email/campaigns/:campaignId
+// DELETE campaign
 export async function deleteCampaign(email, campaignId, apiKey) {
-  const url = `${API_BASE}/users/${encodeURIComponent(email)}/campaigns/${campaignId}`;
-  const response = await axios.delete(url, {
-    headers: getAuthHeaders(apiKey)
-  });
-  return response.data;
+  try {
+    const result = await window.electronAPI.invoke('delete-campaign', email, campaignId);
+    return result;
+  } catch (error) {
+    throw new Error(`Failed to delete campaign: ${error.message}`);
+  }
 }
 
-// POST /api/users/:email/campaigns/:campaignId/stop
+// TOGGLE campaign (start/stop)
 export async function stopCampaign(email, campaignId, apiKey) {
-  const url = `${API_BASE}/users/${encodeURIComponent(email)}/campaigns/${campaignId}/stop`;
-  const response = await axios.post(url, {}, {
-    headers: getAuthHeaders(apiKey)
-  });
-  return response.data;
+  try {
+    // Call toggle-campaign with isActive = false to stop the campaign
+    const result = await window.electronAPI.invoke('toggle-campaign', email, campaignId, false);
+    return result;
+  } catch (error) {
+    throw new Error(`Failed to stop campaign: ${error.message}`);
+  }
+}
+
+// ---User Profile API Endpoints--- (IPC-based)
+
+// Get user profile
+export async function getUserProfile() {
+  try {
+    const email = getStoredEmail();
+    if (!email) {
+      throw new Error('No email found in localStorage.');
+    }
+    
+    const result = await window.electronAPI.invoke('get-user-profile', email);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+// Update user profile (IPC version)
+export async function updateUserProfile(updateData) {
+  try {
+    const email = getStoredEmail();
+    if (!email) {
+      throw new Error('No email found in localStorage.');
+    }
+    
+    const result = await window.electronAPI.invoke('update-user-profile', email, updateData);
+    
+    // If email was changed, update in localStorage
+    if (updateData.newEmail && updateData.newEmail !== email) {
+      localStorage.setItem('rst_user_email', updateData.newEmail);
+    }
+    
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+// Change password (IPC version)
+export async function changeUserPassword(oldPassword, newPassword) {
+  try {
+    const email = getStoredEmail();
+    if (!email) {
+      throw new Error('No email found in localStorage.');
+    }
+    
+    const result = await window.electronAPI.invoke('change-password', email, oldPassword, newPassword);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
 }

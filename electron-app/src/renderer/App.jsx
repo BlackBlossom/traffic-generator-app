@@ -9,7 +9,7 @@ import AuthPage from './pages/AuthPage';
 import ProfilePage from './pages/ProfilePage';
 import DebugPage from './pages/DebugPage';
 import { UserProvider } from './context/UserContext';
-import { WebSocketProvider } from './context/WebSocketLogContext';
+import { IPCLogProvider } from './context/IPCLogContext';
 
 // Simple private route wrapper
 function PrivateRoute({ children }) {
@@ -28,7 +28,7 @@ export default function App() {
           element={
             <PrivateRoute>
               <UserProvider>
-                <WebSocketProvider>
+                <IPCLogProvider>
                   <Layout>
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
@@ -40,7 +40,7 @@ export default function App() {
                       {/* Add more protected routes here */}
                     </Routes>
                   </Layout>
-                </WebSocketProvider>
+                </IPCLogProvider>
               </UserProvider>
             </PrivateRoute>
           }

@@ -1,7 +1,6 @@
 // DebugPage.jsx
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { useWebSocketLogs, useWebSocketManager } from "../context/WebSocketLogContext";
 import { useUser } from "../context/UserContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,14 +14,8 @@ import {
 } from "@heroicons/react/24/outline";
 import CampaignMonitor from "../components/CampaignMonitor";
 import { getUserCampaigns } from "../api/auth";
+import { loggingAPI } from "../api/loggingService";
 import { useLocation } from "react-router-dom";
-
-const stats = [
-  { label: "Errors", value: 12, icon: ExclamationTriangleIcon, accent: "bg-[#d32f2f]/10 text-[#d32f2f] dark:bg-[#ef5350]/10 dark:text-[#ef5350]", description: "Active system errors" },
-  { label: "Warnings", value: 5, icon: InformationCircleIcon, accent: "bg-[#f39c12]/10 text-[#f39c12] dark:bg-[#f7d774]/10 dark:text-[#f7d774]", description: "Issues that might impact stability" },
-  { label: "Sessions", value: 31, icon: CheckCircleIcon, accent: "bg-[#71b48d]/10 text-[#71b48d] dark:bg-[#86cb92]/10 dark:text-[#86cb92]", description: "Active user sessions" },
-  { label: "Uptime", value: "99.96%", icon: CheckCircleIcon, accent: "bg-[#598185]/10 text-[#598185] dark:bg-[#d0d2e5]/10 dark:text-[#d0d2e5]", description: "Uptime in the last 24h" }
-];
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.97 },
@@ -36,8 +29,6 @@ const cardVariants = {
 
 export default function DebugPage() {
   const location = useLocation();
-  const logs = useWebSocketLogs();
-  const { connectionStatus } = useWebSocketManager();
   const { user } = useUser();
   const [filter, setFilter] = useState("");
   const [showTips, setShowTips] = useState(true);
@@ -46,9 +37,97 @@ export default function DebugPage() {
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [isUserScrollingLiveLogs, setIsUserScrollingLiveLogs] = useState(false);
   
+  // IPC-based logging state
+  const [logs, setLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState({
+    isConnected: true, // IPC is always connected
+    isAuthenticated: true,
+    reconnectAttempts: 0
+  });
+  const [logStats, setLogStats] = useState({
+    errorCount: 0,
+    warningCount: 0,
+    totalLogs: 0,
+    activeSessions: 0
+  });
+  
   const liveLogsContainerRef = useRef(null);
+  const logRefreshInterval = useRef(null);
 
   
+  // Load global system logs via IPC
+  const loadGlobalLogs = async () => {
+    if (loadingLogs) return;
+    
+    setLoadingLogs(true);
+    try {
+      const systemLogs = await loggingAPI.getSystemLogs(0); // 0 = unlimited logs
+      const userLogs = await loggingAPI.getUserGlobalLogs(0); // 0 = unlimited logs
+      
+      // Combine and format logs - no limit for unlimited logs
+      const combinedLogs = [
+        ...(systemLogs.data || []).map(log => {
+          // Handle both string and object formats
+          if (typeof log === 'string') {
+            return `[SYSTEM] ${log}`;
+          } else {
+            const timestamp = log.timestamp || new Date().toISOString();
+            const message = log.message || 'No message content';
+            return `[SYSTEM] ${timestamp} - ${message}`;
+          }
+        }),
+        ...(userLogs.data || []).map(log => {
+          // Handle both string and object formats
+          if (typeof log === 'string') {
+            return `[USER] ${log}`;
+          } else {
+            const timestamp = log.timestamp || new Date().toISOString(); 
+            const message = log.message || 'No message content';
+            const campaignId = log.campaignId ? `[${log.campaignId.slice(-8)}]` : '';
+            return `[USER]${campaignId} ${timestamp} - ${message}`;
+          }
+        })
+      ].sort(); // Keep all logs without limit
+      
+      setLogs(combinedLogs);
+      
+      // Update stats based on log content
+      const errors = combinedLogs.filter(log => log.toLowerCase().includes('error')).length;
+      const warnings = combinedLogs.filter(log => log.toLowerCase().includes('warn')).length;
+      
+      setLogStats(prev => ({
+        ...prev,
+        errorCount: errors,
+        warningCount: warnings,
+        totalLogs: combinedLogs.length,
+        activeSessions: combinedLogs.filter(log => log.toLowerCase().includes('session')).length
+      }));
+      
+    } catch (error) {
+      console.error('Failed to load logs:', error);
+      // Add error to logs
+      setLogs(prev => [...prev, `[ERROR] ${new Date().toISOString()} - Failed to load logs: ${error.message}`]);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  // Get log statistics
+  const loadLogStats = async () => {
+    try {
+      const stats = await loggingAPI.getUserLogStats();
+      if (stats.data) {
+        setLogStats(prev => ({
+          ...prev,
+          ...stats.data
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load log stats:', error);
+    }
+  };
+
   // Scroll to top on mount
   useEffect(() => {
     const scroller = document.querySelector('.main-scrollable');
@@ -58,6 +137,71 @@ export default function DebugPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [location.pathname]);
+
+  // Load initial logs and stats + setup live log listeners
+  useEffect(() => {
+    loadGlobalLogs();
+    loadLogStats();
+    
+    // Register for live log updates (global/system logs)
+    console.log('📡 DebugPage: Registering for live log updates');
+    window.electronAPI.registerForLogs();
+    
+    // Set up live log listener
+    const unsubscribe = window.electronAPI.onLogUpdate((logData) => {
+      console.log('📨 DebugPage: Received log update:', logData);
+      
+      // Validate log data to prevent undefined values
+      const timestamp = logData.timestamp || new Date().toISOString();
+      const message = logData.message || 'No message provided';
+      
+      let newLogEntry;
+      
+      if (logData.isLiveOnly) {
+        // Live-only logs (not stored in database)
+        newLogEntry = `[LIVE] ${timestamp} - ${message}`;
+      } else if (logData.campaignId === 'SYSTEM') {
+        // System logs (stored in database)
+        newLogEntry = `[SYSTEM] ${timestamp} - ${message}`;
+      } else if (logData.campaignId && logData.campaignId !== 'LIVE') {
+        // Campaign session logs (stored in database)
+        const campaignShort = logData.campaignId.slice(-8);
+        newLogEntry = `[USER][${campaignShort}] ${timestamp} - ${message}`;
+      } else {
+        // Fallback for user logs without campaign ID
+        newLogEntry = `[USER] ${timestamp} - ${message}`;
+      }
+      
+      // Add log in chronological order (append to end) - no limit for unlimited logs
+      setLogs(prevLogs => [...prevLogs, newLogEntry]);
+      
+      // Update stats
+      setLogStats(prevStats => ({
+        ...prevStats,
+        totalLogs: prevStats.totalLogs + 1,
+        ...(logData.level === 'error' && { errorCount: prevStats.errorCount + 1 }),
+        ...(logData.level === 'warn' && { warningCount: prevStats.warningCount + 1 }),
+        lastUpdate: new Date().toISOString()
+      }));
+    });
+    
+    // Keep periodic refresh as backup (every 30 seconds instead of 5)
+    logRefreshInterval.current = setInterval(() => {
+      console.log('🔄 DebugPage: Periodic log refresh backup');
+      loadGlobalLogs();
+      loadLogStats();
+    }, 30000); // Refresh every 30 seconds as backup
+    
+    return () => {
+      console.log('🧹 DebugPage: Cleaning up log listeners');
+      if (logRefreshInterval.current) {
+        clearInterval(logRefreshInterval.current);
+      }
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
 
   // Load user campaigns
   useEffect(() => {
@@ -84,11 +228,61 @@ export default function DebugPage() {
     fetchCampaigns();
   }, [user]);
 
-  const filteredLogs = useMemo(
-    () =>
-      !filter ? logs : logs.filter(l => l.toLowerCase().includes(filter.toLowerCase())),
-    [logs, filter]
-  );
+  const filteredLogs = useMemo(() => {
+    if (!logs.length) return [];
+    
+    // Get active campaign IDs for filtering
+    const activeCampaignIds = campaigns
+      .filter(c => c.isActive)
+      .map(c => c._id);
+    
+    // Filter logs to only show:
+    // 1. System logs (always show)
+    // 2. Live logs (always show)
+    // 3. Campaign logs from ACTIVE campaigns only
+    const campaignFilteredLogs = logs.filter(log => {
+      // Always show system and live logs
+      if (log.includes('[SYSTEM]') || log.includes('[LIVE]')) {
+        return true;
+      }
+      
+      // For campaign logs, only show if campaign is active
+      if (log.includes('[CAMPAIGN:')) {
+        const campaignMatch = log.match(/\[CAMPAIGN:([^\]]+)\]/);
+        if (campaignMatch) {
+          const campaignShort = campaignMatch[1];
+          // Find the full campaign ID that ends with this short ID
+          const fullCampaignId = activeCampaignIds.find(id => id.endsWith(campaignShort));
+          return !!fullCampaignId;
+        }
+      }
+      
+      // For USER logs, check if they belong to active campaigns
+      if (log.includes('[USER]')) {
+        // Extract campaign ID from USER logs - handle multiple formats
+        // Format 1: [USER][campaignShort] timestamp - message
+        const userCampaignMatch1 = log.match(/\[USER\]\[([^\]]+)\]/);
+        // Format 2: [USER] [campaignShort] timestamp - message (legacy format)
+        const userCampaignMatch2 = log.match(/\[USER\]\s+\[([^\]]+)\]/);
+        
+        if (userCampaignMatch1 || userCampaignMatch2) {
+          const campaignShort = (userCampaignMatch1 || userCampaignMatch2)[1];
+          const fullCampaignId = activeCampaignIds.find(id => id.endsWith(campaignShort));
+          return !!fullCampaignId;
+        }
+        
+        // If no campaign ID in USER log, it's a global user log - only show if no active campaigns
+        return activeCampaignIds.length === 0;
+      }
+      
+      return false;
+    });
+    
+    // Apply text filter if provided
+    return !filter 
+      ? campaignFilteredLogs 
+      : campaignFilteredLogs.filter(l => l.toLowerCase().includes(filter.toLowerCase()));
+  }, [logs, filter, campaigns]);
 
   // Auto-scroll for live logs
   useEffect(() => {
@@ -114,6 +308,38 @@ export default function DebugPage() {
   };
 
   const selectedCampaign = campaigns.find(c => c._id === selectedCampaignId);
+
+  // Create stats array using dynamic data
+  const stats = [
+    { 
+      label: "Errors", 
+      value: logStats.errorCount || 0, 
+      icon: ExclamationTriangleIcon, 
+      accent: "bg-[#d32f2f]/10 text-[#d32f2f] dark:bg-[#ef5350]/10 dark:text-[#ef5350]", 
+      description: "Active system errors" 
+    },
+    { 
+      label: "Warnings", 
+      value: logStats.warningCount || 0, 
+      icon: InformationCircleIcon, 
+      accent: "bg-[#f39c12]/10 text-[#f39c12] dark:bg-[#f7d774]/10 dark:text-[#f7d774]", 
+      description: "Issues that might impact stability" 
+    },
+    { 
+      label: "Total Logs", 
+      value: logStats.totalLogs || 0, 
+      icon: CheckCircleIcon, 
+      accent: "bg-[#71b48d]/10 text-[#71b48d] dark:bg-[#86cb92]/10 dark:text-[#86cb92]", 
+      description: "All log entries" 
+    },
+    { 
+      label: "Active Sessions", 
+      value: logStats.activeSessions || 0, 
+      icon: CheckCircleIcon, 
+      accent: "bg-[#598185]/10 text-[#598185] dark:bg-[#d0d2e5]/10 dark:text-[#d0d2e5]", 
+      description: "Active user sessions" 
+    }
+  ];
 
   return (
     <div className="space-y-6 sm:space-y-8 lg:space-y-10 p-3 sm:p-4 lg:p-6 mx-auto max-w-full">
@@ -231,8 +457,7 @@ export default function DebugPage() {
                     <optgroup label="🟢 Active Campaigns">
                       {campaigns.filter(c => c.isActive).map(campaign => (
                         <option key={campaign._id} value={campaign._id}>
-                          <span className="hidden sm:inline">{campaign.url} • {campaign.concurrent} sessions • Last: {new Date(campaign.updatedAt).toLocaleString()}</span>
-                          <span className="sm:hidden">{campaign.url.length > 25 ? campaign.url.substring(0, 25) + '...' : campaign.url}</span>
+                          {campaign.url} • {campaign.concurrent} sessions • Last: {new Date(campaign.updatedAt).toLocaleString()}
                         </option>
                       ))}
                     </optgroup>
@@ -242,8 +467,7 @@ export default function DebugPage() {
                     <optgroup label="🕒 Scheduled Campaigns">
                       {campaigns.filter(c => c.scheduling && !c.isActive).map(campaign => (
                         <option key={campaign._id} value={campaign._id}>
-                          <span className="hidden sm:inline">{campaign.url} • {campaign.startTime}-{campaign.endTime} • Last: {new Date(campaign.updatedAt).toLocaleString()}</span>
-                          <span className="sm:hidden">{campaign.url.length > 25 ? campaign.url.substring(0, 25) + '...' : campaign.url}</span>
+                          {campaign.url} • {campaign.startTime}-{campaign.endTime} • Last: {new Date(campaign.updatedAt).toLocaleString()}
                         </option>
                       ))}
                     </optgroup>
@@ -253,8 +477,7 @@ export default function DebugPage() {
                     <optgroup label="⭕ Inactive Campaigns (Historical Logs Available)">
                       {campaigns.filter(c => !c.isActive && !c.scheduling).map(campaign => (
                         <option key={campaign._id} value={campaign._id}>
-                          <span className="hidden sm:inline">{campaign.url.length > 35 ? campaign.url.substring(0, 35) + '...' : campaign.url} • Last run: {new Date(campaign.updatedAt).toLocaleString()}</span>
-                          {/* <span className="sm:hidden">{campaign.url.length > 25 ? campaign.url.substring(0, 25) + '...' : campaign.url}</span> */}
+                          {campaign.url.length > 35 ? campaign.url.substring(0, 35) + '...' : campaign.url} • Last run: {new Date(campaign.updatedAt).toLocaleString()}
                         </option>
                       ))}
                     </optgroup>
@@ -309,11 +532,11 @@ export default function DebugPage() {
               <SignalIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 opacity-50" />
               <h3 className="text-base sm:text-lg font-semibold mb-2">No Campaigns Found</h3>
               <p className="text-sm mb-3 sm:mb-4">
-                Create your first campaign in Traffic Settings to start monitoring logs.
+                Create your first campaign in SEO Settings to start monitoring logs.
               </p>
               <div className="text-xs text-orange-500 bg-orange-50 dark:bg-orange-900/20 p-2 sm:p-3 rounded-lg">
                 <p className="font-medium mb-1">Getting Started:</p>
-                <p>1. Go to Traffic Settings</p>
+                <p>1. Go to SEO Settings</p>
                 <p>2. Create a new campaign</p>
                 <p>3. Return here to monitor live logs and analytics</p>
               </div>
@@ -333,12 +556,12 @@ export default function DebugPage() {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <CommandLineIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#e6e7ef] flex-shrink-0" />
             <span className="font-semibold text-sm sm:text-base lg:text-lg text-[#e6e7ef] tracking-wide truncate">
-              <span className="hidden sm:inline">Global Live Logs</span>
-              <span className="sm:hidden">Live Logs</span>
+              <span className="hidden sm:inline">Live Logs (Active Campaigns Only)</span>
+              <span className="sm:hidden">Live Logs (Active)</span>
             </span>
             <span className="text-xs text-[#b0b0c3] bg-[#333762] px-1.5 sm:px-2 py-0.5 sm:py-1 rounded flex-shrink-0">
-              <span className="hidden sm:inline">All Systems</span>
-              <span className="sm:hidden">All</span>
+              <span className="hidden sm:inline">System + Active Only</span>
+              <span className="sm:hidden">Active</span>
             </span>
             {isUserScrollingLiveLogs && (
               <button
@@ -350,13 +573,59 @@ export default function DebugPage() {
               </button>
             )}
           </div>
-          <input
-            type="text"
-            placeholder="Search logs…"
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            className="w-full sm:w-auto px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-[#f1f5f9] dark:bg-[#333762] text-[#1c1641] dark:text-[#e6e7ef] border border-[#e5e5e5] dark:border-[#333762] focus:outline-none focus:ring-2 focus:ring-[#71b48d] dark:focus:ring-[#86cb92] transition-all"
-          />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <input
+              type="text"
+              placeholder="Search logs…"
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              className="w-full sm:w-auto px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-[#f1f5f9] dark:bg-[#333762] text-[#1c1641] dark:text-[#e6e7ef] border border-[#e5e5e5] dark:border-[#333762] focus:outline-none focus:ring-2 focus:ring-[#71b48d] dark:focus:ring-[#86cb92] transition-all"
+            />
+            <button
+              onClick={async () => {
+                try {
+                  // Clear ONLY the UI display - do NOT clear database
+                  setLogs([]);
+                  setLogStats({
+                    errorCount: 0,
+                    warningCount: 0,
+                    totalLogs: 0,
+                    activeSessions: 0
+                  });
+                  
+                  console.log('🧹 Live logs display cleared (database unchanged)');
+                } catch (error) {
+                  console.error('❌ Error clearing log display:', error);
+                }
+              }}
+              className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 transition-all flex-shrink-0"
+            >
+              <span>Clear logs</span>
+            </button>
+            {/* <button
+              onClick={async () => {
+                try {
+                  console.log('🧹 Starting orphaned logs cleanup...');
+                  const result = await loggingAPI.cleanupOrphanedLogs();
+                  
+                  if (result.success) {
+                    console.log(`✅ Cleanup completed: ${result.message}`);
+                    // Refresh logs after cleanup
+                    await loadGlobalLogs();
+                    await loadLogStats();
+                  } else {
+                    console.error('❌ Cleanup failed:', result.error);
+                  }
+                } catch (error) {
+                  console.error('❌ Error cleaning orphaned logs:', error);
+                }
+              }}
+              className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 transition-all flex-shrink-0"
+            >
+              <span className="hidden sm:inline">Clean Orphaned</span>
+              <span className="sm:hidden">Clean</span>
+            </button> */}
+          </div>
         </div>
         <div 
           ref={liveLogsContainerRef}
@@ -365,7 +634,12 @@ export default function DebugPage() {
         >
           {filteredLogs.length === 0 ?
             <div className="italic text-[#b0b0c3] text-center py-6 sm:py-8">
-              {connectionStatus.isAuthenticated ? 'No logs yet. Logs will appear here as they are generated.' : 'Waiting for WebSocket connection...'}
+              {!connectionStatus.isAuthenticated 
+                ? 'Waiting for IPC connection...' 
+                : campaigns.filter(c => c.isActive).length === 0
+                ? 'No active campaigns found. Logs will show when you have active campaigns running.'
+                : 'No logs yet. Logs from active campaigns will appear here as they are generated.'
+              }
             </div>
             :
             filteredLogs.map((log, i) => (
@@ -376,7 +650,7 @@ export default function DebugPage() {
         <div className="rounded-b-xl px-2 sm:px-5 py-1.5 sm:py-2 border-t border-[#333762] bg-[#1a1a1a] text-xs text-[#b0b0c3] flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
             <span>Total logs: {filteredLogs.length}</span>
-            <span>WebSocket: {connectionStatus.isAuthenticated ? '✅ Connected' : '❌ Disconnected'}</span>
+            <span>IPC Logging: {connectionStatus.isAuthenticated ? '✅ Connected' : '❌ Disconnected'}</span>
           </div>
         </div>
       </motion.div>
@@ -402,11 +676,11 @@ export default function DebugPage() {
               </div>
               <ul className="text-xs sm:text-sm text-[#598185] dark:text-[#d0d2e5] space-y-0.5 sm:space-y-1">
                 <li className="hidden sm:list-item">• Campaign logs automatically show for your last active campaign</li>
-                <li>• Logs persist across page reloads and app restarts</li>
+                <li>• Live logs only show system logs + active campaigns</li>
                 <li className="hidden lg:list-item">• Historical logs are automatically loaded when monitoring starts</li>
-                <li className="hidden sm:list-item">• Redis stores up to 10,000 logs per campaign with 24-hour auto-expiry</li>
-                <li className="hidden lg:list-item">• Use Campaign Monitor for persistent logging, Global Logs for real-time debugging</li>
-                <li className="sm:hidden">• Persistent storage with auto-expiry</li>
+                <li className="hidden sm:list-item">• Logs persist across page reloads and app restarts</li>
+                <li className="hidden lg:list-item">• Use Campaign Monitor for persistent logging, Live Logs for real-time debugging</li>
+                <li className="sm:hidden">• Only active campaigns + system logs shown</li>
               </ul>
             </div>
           </div>

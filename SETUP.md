@@ -1,4 +1,4 @@
-# Traffic Generator App - Setup Guide
+# RST - Advance Website Seo Tool - Setup Guide
 
 A comprehensive web traffic generation tool with Electron frontend and Node.js backend.
 
@@ -409,4 +409,4 @@ For issues and questions:
 
 ---
 
-✅ **Ready to Start**: Once both backend and frontend are running, you can access the traffic generator through the Electron app and begin creating campaigns!
+✅ **Ready to Start**: Once both backend and frontend are running, you can access RST - Advance Website Seo Tool through the Electron app and begin creating SEO campaigns!

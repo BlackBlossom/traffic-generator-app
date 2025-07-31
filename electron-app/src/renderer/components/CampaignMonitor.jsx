@@ -14,8 +14,8 @@ import {
   ClockIcon,
   BugAntIcon
 } from '@heroicons/react/24/outline';
-import WebSocketManager from '../services/WebSocketManager';
 import { useUser } from '../context/UserContext';
+import { loggingAPI } from '../api/loggingService';
 
 const LogLevel = {
   ERROR: 'error',
@@ -172,59 +172,111 @@ export default function CampaignMonitor({
     setIsUserScrolling(!isAtBottom);
   };
 
-  // WebSocket connection management
+  // IPC-based log management
+  const [logRefreshInterval, setLogRefreshInterval] = useState(null);
+
+  // Load campaign logs via IPC
+  const loadCampaignLogs = async () => {
+    if (!user?.email || !campaignId) return;
+    
+    try {
+      const result = await loggingAPI.getCampaignLogs(campaignId, 0); // 0 = unlimited logs
+      if (result.data && Array.isArray(result.data)) {
+        const formattedLogs = result.data.map((log, index) => {
+          const parsed = parseLogString(log);
+          return {
+            id: `${Date.now()}_${index}`,
+            sessionId: parsed.sessionId,
+            level: parsed.level || 'info',
+            message: parsed.message || log,
+            timestamp: parsed.timestamp || new Date().toISOString(),
+            isRealtime: false
+          };
+        });
+        
+        setLogs(formattedLogs);
+      }
+    } catch (error) {
+      console.error('Failed to load campaign logs:', error);
+      setError(`Failed to load logs: ${error.message}`);
+    }
+  };
+
+  // IPC monitoring management with live log updates
   useEffect(() => {
-    const handleConnectionChange = (status) => {
-      setConnectionStatus(status);
-    };
-
-    const handleRealtimeLog = (logData) => {
-      if (!isMonitoring) return;
+    if (isMonitoring && campaignId && user?.email) {
+      // Load initial logs
+      loadCampaignLogs();
       
-      const formattedLog = {
-        id: `${Date.now()}_${Math.random()}`,
-        sessionId: logData.sessionId || null,
-        level: logData.level || 'info',
-        message: logData.message || '',
-        timestamp: logData.timestamp || new Date().toISOString(),
-        isRealtime: true
-      };
+      // Register for live log updates
+      console.log('📡 CampaignMonitor: Registering for live log updates');
+      window.electronAPI.registerForLogs();
       
-      setLogs(prevLogs => {
-        const newLogs = [...prevLogs, formattedLog];
-        // Keep only the most recent logs
-        if (newLogs.length > maxLogs) {
-          return newLogs.slice(-maxLogs);
+      // Set up live log listener
+      const unsubscribe = window.electronAPI.onLogUpdate((logData) => {
+        console.log('📨 CampaignMonitor: Received log update:', logData);
+        
+        // Check if this log is for our campaign and user, or if it's a system log
+        const isForThisCampaign = logData.campaignId === campaignId && 
+            (!user?.email || logData.userEmail === user.email);
+        const isSystemLog = logData.campaignId === 'SYSTEM' && logData.userEmail === 'SYSTEM';
+        
+        if (isForThisCampaign || isSystemLog) {
+          console.log('✅ CampaignMonitor: Log matches campaign or is system log, adding to UI');
+          
+          // Create a log object that matches the expected format (not a string)
+          const newLogEntry = {
+            id: `live_${Date.now()}_${Math.random()}`,
+            sessionId: logData.sessionId || null,
+            level: logData.level || 'info',
+            message: logData.message,
+            timestamp: logData.timestamp,
+            isRealtime: true,
+            isSystem: isSystemLog
+          };
+          
+          // Add log to the end of the list (chronological order - oldest to newest) - no limit for unlimited logs
+          setLogs(prevLogs => [...prevLogs, newLogEntry]);
+          
+          // Update log stats (need to check if setLogStats exists)
+          if (typeof setLogStats === 'function') {
+            setLogStats(prevStats => ({
+              ...prevStats,
+              totalLogs: prevStats.totalLogs + 1,
+              ...(logData.level === 'error' && { errorCount: prevStats.errorCount + 1 }),
+              ...(logData.level === 'warn' && { warningCount: prevStats.warningCount + 1 }),
+              lastUpdate: new Date().toISOString()
+            }));
+          }
+        } else {
+          console.log('❌ CampaignMonitor: Log does not match criteria - campaignId:', logData.campaignId, 'vs', campaignId, 'userEmail:', logData.userEmail, 'vs', user?.email);
         }
-        return newLogs;
       });
-    };
-
-    const handleError = (errorData) => {
-      setError(`WebSocket Error: ${errorData.error?.message || 'Unknown error'}`);
-    };
-
-    const handleMaxReconnectReached = () => {
-      setError('Max reconnection attempts reached. Please refresh the page.');
-    };
-
-    WebSocketManager.onConnectionChange(handleConnectionChange);
-    WebSocketManager.on('realtimeLog', handleRealtimeLog);
-    WebSocketManager.on('error', handleError);
-    WebSocketManager.on('maxReconnectAttemptsReached', handleMaxReconnectReached);
-
-    return () => {
-      WebSocketManager.offConnectionChange(handleConnectionChange);
-      WebSocketManager.off('realtimeLog', handleRealtimeLog);
-      WebSocketManager.off('error', handleError);
-      WebSocketManager.off('maxReconnectAttemptsReached', handleMaxReconnectReached);
-    };
-  }, [isMonitoring, maxLogs]);
+      
+      // Still keep periodic refresh as backup (every 30 seconds instead of 3)
+      const interval = setInterval(() => {
+        console.log('🔄 CampaignMonitor: Periodic log refresh backup');
+        loadCampaignLogs();
+      }, 30000); // Refresh every 30 seconds as backup
+      
+      setLogRefreshInterval(interval);
+      
+      return () => {
+        console.log('🧹 CampaignMonitor: Cleaning up log listeners');
+        if (interval) {
+          clearInterval(interval);
+        }
+        if (unsubscribe) {
+          unsubscribe();
+        }
+      };
+    }
+  }, [isMonitoring, campaignId, user?.email]);
 
   // Auto-start monitoring for active campaigns
   useEffect(() => {
     if (campaignId && campaignStatus === 'active' && !isMonitoring && user?.email) {
-      // Small delay to ensure WebSocket connection is ready
+      // Small delay to ensure everything is ready
       const timer = setTimeout(() => {
         startMonitoring();
       }, 500);
@@ -243,35 +295,36 @@ export default function CampaignMonitor({
     setIsLoadingHistory(true);
 
     try {
-      // Connect WebSocket if not connected
-      if (!connectionStatus.isConnected) {
-        await WebSocketManager.connect(user.email);
+      // Load historical logs via IPC
+      const result = await loggingAPI.getCampaignLogs(campaignId, 0); // Get all logs
+      
+      if (result.data && Array.isArray(result.data)) {
+        // Parse and format historical logs
+        const formattedHistoricalLogs = result.data.map((logString, index) => {
+          const parsed = parseLogString(logString);
+          return {
+            id: `hist_${index}_${Date.now()}`,
+            sessionId: parsed.sessionId || null,
+            level: parsed.level || 'info',
+            message: parsed.message || logString, // fallback to raw string
+            timestamp: parsed.timestamp || new Date().toISOString(),
+            isRealtime: false
+          };
+        });
+
+        setLogs(formattedHistoricalLogs);
+        setConnectionStatus({ isConnected: true, isAuthenticated: true, reconnectAttempts: 0 });
+      } else {
+        // Initialize with empty logs
+        setLogs([]);
+        setConnectionStatus({ isConnected: true, isAuthenticated: true, reconnectAttempts: 0 });
       }
 
-      // Fetch historical logs (fetch all logs by passing 0 as limit)
-      const historicalLogs = await WebSocketManager.fetchHistoricalLogs(campaignId, 0);
-      
-      // Parse and format historical logs (reverse to get ascending chronological order)
-      const formattedHistoricalLogs = historicalLogs.reverse().map((logString, index) => {
-        // Parse log string format: [timestamp] LEVEL: message
-        // or [timestamp] [sessionId] LEVEL: message
-        const parsed = parseLogString(logString);
-        return {
-          id: `hist_${index}_${Date.now()}`,
-          sessionId: parsed.sessionId || null,
-          level: parsed.level || 'info',
-          message: parsed.message || logString, // fallback to raw string
-          timestamp: parsed.timestamp || new Date().toISOString(),
-          isRealtime: false
-        };
-      });
-
-      setLogs(formattedHistoricalLogs);
       setIsMonitoring(true);
-      
     } catch (error) {
       console.error('Failed to start monitoring:', error);
       setError(`Failed to start monitoring: ${error.message}`);
+      setConnectionStatus({ isConnected: false, isAuthenticated: false, reconnectAttempts: 0 });
     } finally {
       setIsLoadingHistory(false);
     }
@@ -281,6 +334,11 @@ export default function CampaignMonitor({
     setIsMonitoring(false);
     setLogs([]);
     setError(null);
+    // Clear the refresh interval
+    if (logRefreshInterval) {
+      clearInterval(logRefreshInterval);
+      setLogRefreshInterval(null);
+    }
   };
 
   const clearLogs = async () => {
@@ -290,7 +348,7 @@ export default function CampaignMonitor({
     setError(null);
 
     try {
-      await WebSocketManager.clearLogs(campaignId);
+      await loggingAPI.clearCampaignLogs(campaignId);
       setLogs([]);
     } catch (error) {
       console.error('Failed to clear logs:', error);
@@ -355,28 +413,21 @@ export default function CampaignMonitor({
         </div>
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
-          {/* Connection Status */}
+          {/* IPC Status */}
           <div className="flex items-center gap-1 mb-2 sm:mb-0">
             <WifiIcon className={`w-4 h-4 ${
-              connectionStatus.isAuthenticated ? 'text-green-500' : 
-              connectionStatus.isConnected ? 'text-yellow-500' : 'text-red-500'
+              isMonitoring ? 'text-green-500' : 'text-gray-400'
             }`} />
             <span className="text-xs text-[#404e7c] dark:text-[#86cb92]">
-              {connectionStatus.isAuthenticated ? 'Connected' : 
-               connectionStatus.isConnected ? 'Connecting...' : 'Disconnected'}
+              {isMonitoring ? 'IPC Active' : 'IPC Inactive'}
             </span>
-            {connectionStatus.reconnectAttempts > 0 && (
-              <span className="text-xs text-orange-500">
-                (Retry {connectionStatus.reconnectAttempts})
-              </span>
-            )}
           </div>
 
           {/* Control Buttons */}
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button
               onClick={isMonitoring ? stopMonitoring : startMonitoring}
-              disabled={isLoadingHistory || (!connectionStatus.isAuthenticated && !isMonitoring)}
+              disabled={isLoadingHistory}
               className={`inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition w-full sm:w-auto ${
                 isMonitoring 
                   ? 'bg-red-500 hover:bg-red-600 text-white' 
@@ -529,15 +580,22 @@ export default function CampaignMonitor({
                     {formatTimestamp(log.timestamp)}
                   </span>
                   {log.sessionId && (
-                    <span className="text-blue-400 text-xs min-w-[60px] font-bold">
-                      [{log.sessionId.slice(-6)}]
+                    <span className={`text-xs min-w-[60px] font-bold ${
+                      log.isSystem ? 'text-orange-400' : 'text-blue-400'
+                    }`}>
+                      [{log.isSystem ? 'SYSTEM' : log.sessionId}]
                     </span>
                   )}
-                  <span className={`flex-1 ${LogLevelColors[log.level]}`}>
+                  <span className={`flex-1 ${LogLevelColors[log.level]} ${
+                    log.isSystem ? 'font-medium' : ''
+                  }`}>
                     {log.message}
                   </span>
                   {!log.isRealtime && (
                     <span className="text-xs text-gray-600">📋</span>
+                  )}
+                  {log.isSystem && (
+                    <span className="text-xs text-orange-600">🔧</span>
                   )}
                 </motion.div>
               );

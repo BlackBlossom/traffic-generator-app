@@ -15,13 +15,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const navItems = [
   { name: 'Dashboard', icon: <FaHome />, path: '/' },
-  { name: 'Traffic Settings', icon: <FaCogs />, path: '/traffic-settings' },
+  { name: 'SEO Settings', icon: <FaCogs />, path: '/traffic-settings' },
   { name: 'Proxy Management', icon: <FaServer />, path: '/proxy-management' },
-  { name: 'Traffic Analytics', icon: <FaChartBar />, path: '/traffic-analytics' },
-  // { name: 'Reports', icon: <FaChartBar />, path: '/reports' },
+  { name: 'SEO Analytics', icon: <FaChartBar />, path: '/traffic-analytics' },
   { name: 'Debug', icon: <FaBug />, path: '/debug' },
   { name: 'Profile', icon: <FaUser />, path: '/profile' },
-  // { name: 'Additional Settings', icon: <FaSlidersH />, path: '/additional-settings' }
 ]
 
 function Tooltip({ targetRef, text }) {
@@ -115,7 +113,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
               exit={{ opacity: 0, scale: 0.8 }}
               className="text-2xl font-bold text-[#260f26] dark:text-[#86cb92] tracking-wide origin-left"
             >
-              Traffica
+              RST
             </motion.span>
           )}
           <button
@@ -179,7 +177,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
             animate={{ opacity: 1 }}
             className="text-xs text-center text-[#598185] dark:text-[#86cb92] border-t border-[#e0e0e0] dark:border-[#333762] py-3"
           >
-            Traffica © 2025
+            RST © 2025
           </motion.div>
         )}
       </motion.aside>

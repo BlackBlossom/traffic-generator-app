@@ -736,7 +736,7 @@ export default function TrafficAnalytics() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#260f26] dark:text-[#86cb92] tracking-tight">
-              Traffic Analytics
+              SEO Analytics
             </h1>
             <p className="text-sm sm:text-base lg:text-lg text-[#598185] dark:text-[#d0d2e5] mt-1">
               Monitor live sessions, analyze historical traffic, and understand your traffic sources — all in one place.
@@ -782,7 +782,7 @@ export default function TrafficAnalytics() {
             No Campaigns Found
           </h3>
           <p className="text-yellow-700 dark:text-yellow-300 mb-4">
-            You need to create campaigns in Traffic Settings to start generating analytics data. All current stats show zero because no campaigns exist.
+            You need to create campaigns in SEO Settings to start generating analytics data. All current stats show zero because no campaigns exist.
           </p>
           <button
             onClick={() => window.location.hash = '#/traffic-settings'}

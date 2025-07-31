@@ -18,7 +18,7 @@ export default function Topbar({ collapsed }) {
     >
       {/* Left: App Title */}
       <h1 className="text-2xl font-bold text-[#260f26] dark:text-[#86cb92] tracking-wide">
-        {collapsed? "Traffica" : ""}
+        {collapsed? "RST" : ""}
       </h1>
 
       {/* Right: Toggle + Profile */}

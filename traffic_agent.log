@@ -1,0 +1,300 @@
+2025-07-31 12:28:53,391 - INFO - Gemini AI configured successfully
+2025-07-31 12:29:22,759 - INFO - Starting traffic agent for 1 URLs, duration: 60s
+2025-07-31 12:29:22,759 - INFO - Target URLs: ['https://movie-seach-website.vercel.app/']
+2025-07-31 12:29:36,726 - INFO - Browser initialized successfully
+2025-07-31 12:29:36,727 - INFO - Creating pages for 1 URLs...
+2025-07-31 12:29:38,875 - INFO - Page created successfully for: https://movie-seach-website.vercel.app/
+2025-07-31 12:29:38,875 - INFO - Successfully created 1 pages. Starting interaction phase...
+2025-07-31 12:29:39,250 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:29:39,251 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:29:41,401 - INFO - Total ads detected: 0
+2025-07-31 12:29:41,401 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:29:42,508 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:29:42,508 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:29:44,625 - INFO - Total ads detected: 0
+2025-07-31 12:29:44,625 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:29:45,784 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:29:45,784 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:29:47,911 - INFO - Total ads detected: 0
+2025-07-31 12:29:47,912 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:29:49,007 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:29:49,007 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:29:51,107 - INFO - Total ads detected: 0
+2025-07-31 12:29:51,107 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:29:52,254 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:29:52,255 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:29:54,384 - INFO - Total ads detected: 0
+2025-07-31 12:29:54,385 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:29:55,608 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:29:55,608 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:29:57,725 - INFO - Total ads detected: 0
+2025-07-31 12:29:57,725 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:29:58,798 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:29:58,798 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:30:00,963 - INFO - Total ads detected: 0
+2025-07-31 12:30:00,964 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:30:02,111 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:30:02,112 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:30:04,260 - INFO - Total ads detected: 0
+2025-07-31 12:30:04,260 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:30:05,374 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:30:05,375 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:30:07,528 - INFO - Total ads detected: 0
+2025-07-31 12:30:07,528 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:30:08,636 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:30:08,636 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:30:10,739 - INFO - Total ads detected: 0
+2025-07-31 12:30:10,740 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:30:11,862 - INFO - Page analysis complete: 0 links, 2 buttons, 1 inputs
+2025-07-31 12:30:11,862 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:30:13,941 - INFO - Total ads detected: 0
+2025-07-31 12:30:13,941 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:30:14,944 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:15,959 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:16,973 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:17,983 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:18,993 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:20,002 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:21,009 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:22,015 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:23,018 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:24,025 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:25,032 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:26,050 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:27,054 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:28,061 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:29,067 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:30,084 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:31,100 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:32,110 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:33,124 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:34,136 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:35,154 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:36,159 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:37,170 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:38,185 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:30:39,191 - INFO - Session completed: 0 actions, 0.00% success rate, 0 ad interactions
+2025-07-31 12:30:39,193 - INFO - === AD INTERACTION REPORT ===
+2025-07-31 12:30:39,194 - INFO - Total ads detected: 0
+2025-07-31 12:30:39,194 - INFO - Total ads clicked: 0
+2025-07-31 12:30:39,194 - INFO - Total ads ignored: 0
+2025-07-31 12:30:39,194 - INFO - Click success rate: 0.0%
+2025-07-31 12:30:39,195 - INFO - Ad types encountered: 
+2025-07-31 12:30:39,195 - INFO - Domains with ads: 
+2025-07-31 12:30:39,195 - INFO - Popups closed: 0
+2025-07-31 12:30:39,196 - INFO - 
+2025-07-31 12:30:39,196 - INFO - === RECOMMENDATIONS ===
+2025-07-31 12:30:39,196 - INFO -   - Low click success rate - consider updating selectors
+2025-07-31 12:30:39,201 - INFO - Browser cleanup completed
+2025-07-31 12:30:39,201 - INFO - === SESSION SUMMARY ===
+2025-07-31 12:30:39,202 - INFO - URLs: ['https://movie-seach-website.vercel.app/']
+2025-07-31 12:30:39,202 - INFO - Pages created: 1
+2025-07-31 12:30:39,202 - INFO - Total actions: 0
+2025-07-31 12:30:39,202 - INFO - Successful actions: 0
+2025-07-31 12:30:39,202 - INFO - Success rate: 0.00%
+2025-07-31 12:30:39,203 - INFO - Ad interactions: 0
+2025-07-31 12:30:39,203 - INFO - Errors: 35
+2025-07-31 12:30:39,203 - INFO - 
+2025-07-31 12:30:39,203 - INFO - === FINAL AD INTERACTION SUMMARY ===
+2025-07-31 12:30:39,203 - INFO - Ads detected: 0
+2025-07-31 12:30:39,204 - INFO - Ads clicked: 0
+2025-07-31 12:30:39,204 - INFO - Ad click success rate: 0.0%
+2025-07-31 12:30:39,204 - INFO - 
+2025-07-31 12:30:39,204 - INFO - Error details:
+2025-07-31 12:30:39,204 - INFO -   1. Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:30:39,204 - INFO -   2. Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:30:39,204 - INFO -   3. Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:30:39,204 - INFO -   4. Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:30:39,205 - INFO -   5. Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:32:43,220 - INFO - Gemini AI configured successfully
+2025-07-31 12:33:01,324 - INFO - Starting traffic agent for 1 URLs, duration: 60s
+2025-07-31 12:33:01,324 - INFO - Target URLs: ['https://xrakayygs.play.gamezop.com/']
+2025-07-31 12:33:02,472 - INFO - Browser initialized successfully
+2025-07-31 12:33:02,472 - INFO - Creating pages for 1 URLs...
+2025-07-31 12:33:03,272 - INFO - Page created successfully for: https://xrakayygs.play.gamezop.com/
+2025-07-31 12:33:03,272 - INFO - Successfully created 1 pages. Starting interaction phase...
+2025-07-31 12:33:10,644 - INFO - Page analysis complete: 5 links, 2 buttons, 0 inputs
+2025-07-31 12:33:10,644 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:33:13,158 - INFO - Total ads detected: 8
+2025-07-31 12:33:40,899 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:33:41,909 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:42,919 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:43,931 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:44,943 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:45,959 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:46,970 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:47,979 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:48,994 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:49,999 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:51,006 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:52,019 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:53,029 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:54,041 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:55,046 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:56,054 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:57,071 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:58,080 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:33:59,094 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:34:00,105 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:34:01,113 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:34:02,126 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:34:03,140 - ERROR - Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:34:04,155 - INFO - Session completed: 0 actions, 0.00% success rate, 0 ad interactions
+2025-07-31 12:34:04,156 - INFO - === AD INTERACTION REPORT ===
+2025-07-31 12:34:04,156 - INFO - Total ads detected: 8
+2025-07-31 12:34:04,157 - INFO - Total ads clicked: 0
+2025-07-31 12:34:04,157 - INFO - Total ads ignored: 0
+2025-07-31 12:34:04,157 - INFO - Click success rate: 0.0%
+2025-07-31 12:34:04,158 - INFO - Ad types encountered: display, iframe
+2025-07-31 12:34:04,158 - INFO - Domains with ads: xrakayygs.play.gamezop.com
+2025-07-31 12:34:04,159 - INFO - Popups closed: 0
+2025-07-31 12:34:04,159 - INFO - 
+2025-07-31 12:34:04,160 - INFO - === AD TYPE BREAKDOWN ===
+2025-07-31 12:34:04,160 - INFO - Display Ads:
+2025-07-31 12:34:04,160 - INFO -   Detected: 5, Clicked: 0, Ignored: 0, Failed: 5
+2025-07-31 12:34:04,161 - INFO - Iframe Ads:
+2025-07-31 12:34:04,161 - INFO -   Detected: 3, Clicked: 0, Ignored: 0, Failed: 5
+2025-07-31 12:34:04,161 - INFO - 
+2025-07-31 12:34:04,162 - INFO - === RECOMMENDATIONS ===
+2025-07-31 12:34:04,162 - INFO -   - Low click success rate - consider updating selectors
+2025-07-31 12:34:04,162 - INFO -   - Iframe ads detected but not interacted with
+2025-07-31 12:34:04,168 - INFO - Browser cleanup completed
+2025-07-31 12:34:04,168 - INFO - === SESSION SUMMARY ===
+2025-07-31 12:34:04,168 - INFO - URLs: ['https://xrakayygs.play.gamezop.com/']
+2025-07-31 12:34:04,169 - INFO - Pages created: 1
+2025-07-31 12:34:04,169 - INFO - Total actions: 0
+2025-07-31 12:34:04,169 - INFO - Successful actions: 0
+2025-07-31 12:34:04,169 - INFO - Success rate: 0.00%
+2025-07-31 12:34:04,169 - INFO - Ad interactions: 0
+2025-07-31 12:34:04,169 - INFO - Errors: 23
+2025-07-31 12:34:04,169 - INFO - 
+2025-07-31 12:34:04,170 - INFO - === FINAL AD INTERACTION SUMMARY ===
+2025-07-31 12:34:04,170 - INFO - Ads detected: 8
+2025-07-31 12:34:04,170 - INFO - Ads clicked: 0
+2025-07-31 12:34:04,171 - INFO - Ad click success rate: 0.0%
+2025-07-31 12:34:04,172 - INFO - 
+2025-07-31 12:34:04,172 - INFO - Ad Type Performance:
+2025-07-31 12:34:04,173 - INFO -   Display: 0/5 clicked (0.0%)
+2025-07-31 12:34:04,173 - INFO -   Iframe: 0/3 clicked (0.0%)
+2025-07-31 12:34:04,174 - INFO - 
+2025-07-31 12:34:04,175 - INFO - Error details:
+2025-07-31 12:34:04,176 - INFO -   1. Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:34:04,176 - INFO -   2. Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:34:04,176 - INFO -   3. Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:34:04,177 - INFO -   4. Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:34:04,177 - INFO -   5. Interaction loop error: Page.bring_to_front: Target page, context or browser has been closed
+2025-07-31 12:35:54,407 - INFO - Gemini AI configured successfully
+2025-07-31 12:36:31,307 - INFO - Starting traffic agent for 1 URLs, duration: 60s
+2025-07-31 12:36:31,308 - INFO - Target URLs: ['https://www.hindustantimes.com/']
+2025-07-31 12:36:32,126 - INFO - Browser initialized successfully
+2025-07-31 12:36:32,126 - INFO - Creating pages for 1 URLs...
+2025-07-31 12:36:32,822 - INFO - Page created successfully for: https://www.hindustantimes.com/
+2025-07-31 12:36:32,822 - INFO - Successfully created 1 pages. Starting interaction phase...
+2025-07-31 12:36:40,739 - INFO - Page analysis complete: 710 links, 7 buttons, 3 inputs
+2025-07-31 12:36:40,740 - INFO - Starting comprehensive ad detection and interaction...
+2025-07-31 12:36:45,878 - INFO - Total ads detected: 21
+2025-07-31 12:36:49,031 - INFO - Successfully interacted with iframe ad
+2025-07-31 12:36:54,341 - INFO - Successfully interacted with iframe ad
+2025-07-31 12:36:58,696 - INFO - Successfully interacted with iframe ad
+2025-07-31 12:37:07,228 - INFO - Successfully interacted with iframe ad
+2025-07-31 12:37:13,501 - INFO - Successfully clicked display ad
+2025-07-31 12:37:21,151 - INFO - Successfully clicked display ad
+2025-07-31 12:37:53,669 - ERROR - Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'
+2025-07-31 12:37:54,671 - INFO - Session completed: 0 actions, 0.00% success rate, 0 ad interactions
+2025-07-31 12:37:54,672 - INFO - === AD INTERACTION REPORT ===
+2025-07-31 12:37:54,672 - INFO - Total ads detected: 21
+2025-07-31 12:37:54,672 - INFO - Total ads clicked: 6
+2025-07-31 12:37:54,673 - INFO - Total ads ignored: 15
+2025-07-31 12:37:54,673 - INFO - Click success rate: 50.0%
+2025-07-31 12:37:54,674 - INFO - Ad types encountered: iframe, display
+2025-07-31 12:37:54,675 - INFO - Domains with ads: www.hindustantimes.com
+2025-07-31 12:37:54,675 - INFO - Popups closed: 0
+2025-07-31 12:37:54,675 - INFO - 
+2025-07-31 12:37:54,676 - INFO - === CLICKED ADS DETAILS ===
+2025-07-31 12:37:54,676 - INFO - 1. Google Ads Iframe /1055314/Hindustantimes Desktop Home/Ht Desk Home Top Multisize 0 (iframe)
+2025-07-31 12:37:54,677 - INFO -    Domain: www.hindustantimes.com
+2025-07-31 12:37:54,678 - INFO -    Clicked at: 2025-07-31T12:36:50.885479
+2025-07-31 12:37:54,678 - INFO -    Position: (925, 510) Size: 299x250
+2025-07-31 12:37:54,678 - INFO - 2. Google Ads Iframe /1055314/Hindustantimes Desktop Home/Ht Desk Home Top Multisize 0 (iframe)
+2025-07-31 12:37:54,679 - INFO -    Domain: www.hindustantimes.com
+2025-07-31 12:37:54,680 - INFO -    Clicked at: 2025-07-31T12:36:55.650035
+2025-07-31 12:37:54,680 - INFO -    Position: (925, 637) Size: 299x250
+2025-07-31 12:37:54,681 - INFO - 3. Ftframe9780208 (iframe)
+2025-07-31 12:37:54,681 - INFO -    Domain: www.hindustantimes.com
+2025-07-31 12:37:54,681 - INFO -    Clicked at: 2025-07-31T12:37:00.855318
+2025-07-31 12:37:54,682 - INFO -    Position: (135, 20) Size: 1079x400
+2025-07-31 12:37:54,682 - INFO - 4. Google Ads Iframe /1055314/Hindustantimes Desktop Home/Ht Desk Home Top Multisize 0 (iframe)
+2025-07-31 12:37:54,683 - INFO -    Domain: www.hindustantimes.com
+2025-07-31 12:37:54,683 - INFO -    Clicked at: 2025-07-31T12:37:09.117389
+2025-07-31 12:37:54,683 - INFO -    Position: (925, 637) Size: 299x250
+2025-07-31 12:37:54,684 - INFO - 5. Top News
+E-Paper
+Malegaon Blast Case Verdict Live
+ (display)
+2025-07-31 12:37:54,684 - INFO -    Domain: www.hindustantimes.com
+2025-07-31 12:37:54,685 - INFO -    Text: Top News
+E-Paper
+Malegaon Blast Case Verdict Live
+
+2025-07-31 12:37:54,685 - INFO -    Clicked at: 2025-07-31T12:37:14.900924
+2025-07-31 12:37:54,685 - INFO -    Position: (120, 385) Size: 1111x77
+2025-07-31 12:37:54,686 - INFO - 6. WEB STORIES VIEW ALL
+ 
+Powerful quotes to fuel you (display)
+2025-07-31 12:37:54,687 - INFO -    Domain: www.hindustantimes.com
+2025-07-31 12:37:54,688 - INFO -    Text: WEB STORIES VIEW ALL
+ 
+Powerful quotes to fuel you
+2025-07-31 12:37:54,689 - INFO -    Clicked at: 2025-07-31T12:37:22.833284
+2025-07-31 12:37:54,690 - INFO -    Position: (355, 14686) Size: 550x405
+2025-07-31 12:37:54,691 - INFO - 
+2025-07-31 12:37:54,692 - INFO - === AD TYPE BREAKDOWN ===
+2025-07-31 12:37:54,694 - INFO - Display Ads:
+2025-07-31 12:37:54,695 - INFO -   Detected: 17, Clicked: 2, Ignored: 15, Failed: 2
+2025-07-31 12:37:54,697 - INFO - Iframe Ads:
+2025-07-31 12:37:54,697 - INFO -   Detected: 4, Clicked: 4, Ignored: 0, Failed: 4
+2025-07-31 12:37:54,698 - INFO - 
+2025-07-31 12:37:54,698 - INFO - === IGNORED ADS SUMMARY ===
+2025-07-31 12:37:54,699 - INFO - Reason: Element not visible (Count: 15)
+2025-07-31 12:37:54,700 - INFO -   Ad types: display
+2025-07-31 12:37:54,701 - INFO -   Examples: 8 National Geographic photos of Ranthambore's icon, SHOP NOW
+Apparel
+Shoes
+Watches
+Fragrances
+57% OFF
+
+2025-07-31 12:37:54,702 - INFO - 
+2025-07-31 12:37:54,703 - INFO - === RECOMMENDATIONS ===
+2025-07-31 12:37:54,704 - INFO -   - Many ads ignored - review ignore criteria
+2025-07-31 12:37:55,477 - INFO - Browser cleanup completed
+2025-07-31 12:37:55,477 - INFO - === SESSION SUMMARY ===
+2025-07-31 12:37:55,477 - INFO - URLs: ['https://www.hindustantimes.com/']
+2025-07-31 12:37:55,477 - INFO - Pages created: 1
+2025-07-31 12:37:55,477 - INFO - Total actions: 0
+2025-07-31 12:37:55,477 - INFO - Successful actions: 0
+2025-07-31 12:37:55,478 - INFO - Success rate: 0.00%
+2025-07-31 12:37:55,478 - INFO - Ad interactions: 0
+2025-07-31 12:37:55,478 - INFO - Errors: 1
+2025-07-31 12:37:55,478 - INFO - 
+2025-07-31 12:37:55,478 - INFO - === FINAL AD INTERACTION SUMMARY ===
+2025-07-31 12:37:55,478 - INFO - Ads detected: 21
+2025-07-31 12:37:55,478 - INFO - Ads clicked: 6
+2025-07-31 12:37:55,478 - INFO - Ad click success rate: 50.0%
+2025-07-31 12:37:55,478 - INFO - 
+2025-07-31 12:37:55,479 - INFO - Top Clicked Ads:
+2025-07-31 12:37:55,479 - INFO -   1. Google Ads Iframe /1055314/Hindustantimes Desktop Home/Ht Desk Home Top Multisize 0 (iframe) on www.hindustantimes.com
+2025-07-31 12:37:55,479 - INFO -   2. Google Ads Iframe /1055314/Hindustantimes Desktop Home/Ht Desk Home Top Multisize 0 (iframe) on www.hindustantimes.com
+2025-07-31 12:37:55,479 - INFO -   3. Ftframe9780208 (iframe) on www.hindustantimes.com
+2025-07-31 12:37:55,479 - INFO -   4. Google Ads Iframe /1055314/Hindustantimes Desktop Home/Ht Desk Home Top Multisize 0 (iframe) on www.hindustantimes.com
+2025-07-31 12:37:55,479 - INFO -   5. Top News
+E-Paper
+Malegaon Blast Case Verdict Live
+ (display) on www.hindustantimes.com
+2025-07-31 12:37:55,479 - INFO - 
+2025-07-31 12:37:55,480 - INFO - Ad Type Performance:
+2025-07-31 12:37:55,480 - INFO -   Display: 2/17 clicked (11.8%)
+2025-07-31 12:37:55,480 - INFO -   Iframe: 4/4 clicked (100.0%)
+2025-07-31 12:37:55,480 - INFO - 
+2025-07-31 12:37:55,480 - INFO - Error details:
+2025-07-31 12:37:55,480 - INFO -   1. Interaction loop error: 'RobustActionExecutor' object has no attribute 'execute_action'

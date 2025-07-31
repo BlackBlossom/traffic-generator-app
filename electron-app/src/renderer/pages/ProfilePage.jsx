@@ -3,13 +3,15 @@ import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   PencilIcon, XMarkIcon, EyeIcon, EyeSlashIcon, KeyIcon,
-  ArrowRightEndOnRectangleIcon, EnvelopeIcon, UserCircleIcon, ShieldCheckIcon, PlusIcon
+  ArrowRightEndOnRectangleIcon, EnvelopeIcon, UserCircleIcon, ShieldCheckIcon, PlusIcon,
+  ComputerDesktopIcon
 } from "@heroicons/react/24/outline";
 import {
   getUserByEmail, updateUserDetails, changePassword, generateApiKey,
   revokeApiKey, verify, resendOtp,
 } from "../api/auth";
 import { useUser } from "../context/UserContext";
+import ToggleSwitch from "../components/ToggleSwitch";
 
 const COLORS = {
   emerald: "#86cb92",
@@ -360,6 +362,8 @@ export default function ProfilePage() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
   const [apiKeyReveal, setApiKeyReveal] = useState(false);
+  const [startupEnabled, setStartupEnabled] = useState(false);
+  const [startupLoading, setStartupLoading] = useState(false);
   const token = localStorage.getItem("token");
   const location = useLocation();
 
@@ -371,6 +375,22 @@ export default function ProfilePage() {
     }
     setProfileLoading(false);
   }, [user]);
+
+  useEffect(() => {
+    // Load startup status when component mounts
+    const loadStartupStatus = async () => {
+      try {
+        const result = await window.electronAPI.getStartupEnabled();
+        if (result.success) {
+          setStartupEnabled(result.enabled);
+        }
+      } catch (error) {
+        console.error('Failed to load startup status:', error);
+      }
+    };
+    
+    loadStartupStatus();
+  }, []);
 
   useEffect(() => {
     // Try main container first
@@ -390,7 +410,7 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("traffica_user_email");
+    localStorage.removeItem("rst_user_email");
     window.location.href = "/login";
   };
 
@@ -476,6 +496,29 @@ export default function ProfilePage() {
     }
   };
 
+  const handleStartupToggle = async (enable) => {
+    setStartupLoading(true);
+    try {
+      const result = await window.electronAPI.setStartupEnabled(enable);
+      if (result.success) {
+        setStartupEnabled(enable);
+        showToast(
+          enable 
+            ? "App will now start at login" 
+            : "App will no longer start at login", 
+          "success"
+        );
+      } else {
+        showToast("Failed to update startup setting", "error");
+      }
+    } catch (error) {
+      console.error('Failed to toggle startup:', error);
+      showToast("Failed to update startup setting", "error");
+    } finally {
+      setStartupLoading(false);
+    }
+  };
+
   
   if (profileLoading || !user)
     return (
@@ -490,7 +533,7 @@ export default function ProfilePage() {
         layout
         layoutId="profile-card"
         className="relative bg-white/98 dark:bg-[#1c1b2f]/70 border-0 border-[#598185]/40 dark:border-[#86cb92]/40
-          rounded-2xl shadow-2xl px-8 py-10 space-y-10 max-w-xl h-[490px] w-full flex flex-col"
+          rounded-2xl shadow-2xl px-8 py-10 space-y-10 max-w-xl h-full w-full flex flex-col"
         initial={{ opacity: 0, y: 32, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 140, damping: 22 } }}
         exit={{ opacity: 0, y: 32, scale: 0.98, transition: { duration: 0.2 } }}
@@ -545,7 +588,6 @@ export default function ProfilePage() {
         />
 
         {/* Feedback */}
-        {/* 
         <AnimatePresence>
           {toast.open && (
             <motion.div
@@ -567,7 +609,6 @@ export default function ProfilePage() {
             </motion.div>
           )}
         </AnimatePresence>
-{/*  */}
         {/* Divider */}
         <div className="w-full border-t border-[#598185]/20 dark:border-[#86cb92]/20"></div>
 
@@ -619,6 +660,26 @@ export default function ProfilePage() {
                 disabled={apiKeyLoading}
               />
             )}
+          </div>
+        </motion.div>
+
+        {/* Divider */}
+        <div className="w-full border-t border-[#598185]/20 dark:border-[#86cb92]/20"></div>
+
+        {/* Startup Settings Section */}
+        <motion.div layout className="w-full flex flex-col gap-4">
+          <div className="flex items-center gap-2 text-lg font-semibold text-[#260f26] dark:text-[#86cb92]">
+            <ComputerDesktopIcon className="w-5 h-5" /> 
+            Startup Settings
+          </div>
+          <div className="px-4">
+            <ToggleSwitch
+              enabled={startupEnabled}
+              onToggle={handleStartupToggle}
+              disabled={startupLoading}
+              label="Start app at login"
+              description="Automatically launch RST when you log into your computer"
+            />
           </div>
         </motion.div>
 

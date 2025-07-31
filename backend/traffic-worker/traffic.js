@@ -8,6 +8,7 @@ const redisLogger = require('../services/redisLogger');
 const campaignAnalytics = require('../services/campaignAnalytics');
 const url = require('url');
 
+
 puppeteer.use(StealthPlugin());
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -274,13 +275,39 @@ const PROXY_HOST = process.env.PROXY_HOST || 'gw.dataimpulse.com';
 const PROXY_PORT = process.env.PROXY_PORT || '823';
 const PROXY_USER = process.env.PROXY_USER || 'b0ac12156e5e63a82bbe';
 const PROXY_PASS = process.env.PROXY_PASS || 'c16003108e64d017';
-const PROXY = `${PROXY_HOST}:${PROXY_PORT}`;
+const DEFAULT_PROXY = `${PROXY_HOST}:${PROXY_PORT}`;
+
+// Function to select a random proxy from campaign proxies or use default
+function selectProxy(campaignProxies) {
+  if (!campaignProxies || !Array.isArray(campaignProxies) || campaignProxies.length === 0) {
+    return {
+      host: PROXY_HOST,
+      port: PROXY_PORT,
+      username: PROXY_USER,
+      password: PROXY_PASS,
+      proxyString: DEFAULT_PROXY
+    };
+  }
+  
+  // Select random proxy from campaign proxies
+  const randomProxy = campaignProxies[Math.floor(Math.random() * campaignProxies.length)];
+  return {
+    host: randomProxy.host,
+    port: randomProxy.port,
+    username: randomProxy.username || '',
+    password: randomProxy.password || '',
+    proxyString: `${randomProxy.host}:${randomProxy.port}`
+  };
+}
 
 async function launchSession(params, sessionId, ws, campaignId = null, userEmail = null) {
   let browser = null;
   const desktopPercentage = params.desktopPercentage !== undefined ? params.desktopPercentage : 70;
   const shouldBeDesktop = Math.random() * 100 < desktopPercentage;
   const deviceType = shouldBeDesktop ? 'Desktop' : 'Mobile';
+
+  // Select proxy for this session
+  const selectedProxy = selectProxy(params.proxies);
 
   const sessionData = {
     sessionId,
@@ -293,7 +320,7 @@ async function launchSession(params, sessionId, ws, campaignId = null, userEmail
     visited: false,
     completed: false,
     bounced: false,
-    proxy: PROXY,
+    proxy: selectedProxy.proxyString,
     headful: false
   };
 
@@ -312,9 +339,9 @@ async function launchSession(params, sessionId, ws, campaignId = null, userEmail
     const shouldBeHeadful = Math.random() * 100 < headfulPercentage;
     sessionData.headful = shouldBeHeadful;
     const browserMode = shouldBeHeadful ? 'headful' : 'headless';
-    logToWebsocket(ws, sessionId, 'info', `Launching ${browserMode} browser with proxy: ${PROXY}`, campaignId, userEmail);
+    logToWebsocket(ws, sessionId, 'info', `Launching ${browserMode} browser with proxy: ${selectedProxy.proxyString}`, campaignId, userEmail);
 
-    const launchArgs = ['--no-sandbox', `--proxy-server=${PROXY}`];
+    const launchArgs = ['--no-sandbox', `--proxy-server=${selectedProxy.proxyString}`];
     browser = await puppeteer.launch({
       headless: !shouldBeHeadful,
       args: launchArgs,
@@ -322,7 +349,14 @@ async function launchSession(params, sessionId, ws, campaignId = null, userEmail
     });
 
     const page = await browser.newPage();
-    await page.authenticate({ username: PROXY_USER, password: PROXY_PASS });
+    
+    // Authenticate with proxy if credentials are available
+    if (selectedProxy.username && selectedProxy.password) {
+      await page.authenticate({ 
+        username: selectedProxy.username, 
+        password: selectedProxy.password 
+      });
+    }
 
     // INJECT COOKIES USING MODERN API
     if (Array.isArray(params.cookies) && params.cookies.length > 0) {

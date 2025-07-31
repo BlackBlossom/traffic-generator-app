@@ -142,6 +142,7 @@ export default function ProxyManagement() {
     } else {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
+    setProxyText(localStorage.getItem("proxies") || "");
   }, [location.pathname]);
 
   // Scraper Logic
@@ -293,7 +294,7 @@ export default function ProxyManagement() {
         </p>
       </motion.div>
 
-      {/* Tabs */}
+      {/* Tabs *
       <div className="flex gap-2">
         <TabButton
           active={tab === "input"}
@@ -347,7 +348,10 @@ export default function ProxyManagement() {
               <div className="flex gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => setProxyText("")}
+                  onClick={() => {
+                    setProxyText("");
+                    localStorage.removeItem("proxies");
+                  }}
                   className="inline-flex items-center gap-1 px-3 py-1 bg-[#eaeaff] dark:bg-[#333762] text-[#404e7c] dark:text-[#86cb92] rounded transition hover:bg-[#86cb92]/20"
                 >
                   <XMarkIcon className="w-4 h-4" /> Clear
@@ -393,7 +397,7 @@ export default function ProxyManagement() {
               animate="visible"
             >
               {/* Auto Scraper Card */}
-              <div className="p-2 space-y-6">
+              {/* <div className="p-2 space-y-6">
                 <div className="flex items-center gap-2 mb-4 text-xl font-semibold text-[#260f26] dark:text-[#86cb92]">
                   <ArrowPathIcon className="w-6 h-6" /> Auto Scraper
                 </div>
@@ -406,7 +410,7 @@ export default function ProxyManagement() {
                   <ArrowPathIcon className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
                   {loading ? "Scraping…" : "Scrape Now"}
                 </button>
-              </div>
+              </div> */}
               {/* Import from URL Card */}
               <form className="p-2 space-y-6" onSubmit={handleLoadFromUrl}>
                 <div className="flex items-center gap-2 mb-4 text-xl font-semibold text-[#260f26] dark:text-[#86cb92]">
@@ -525,7 +529,7 @@ export default function ProxyManagement() {
             </motion.div>
           </motion.section>
         )}
-
+{/* 
         {tab === "status" && (
           <motion.section
             key="status"
@@ -635,7 +639,7 @@ export default function ProxyManagement() {
                 </h3>
                 {/* <button onClick={() => setTab("input")} aria-label="Close settings">
                   <XMarkIcon className="w-6 h-6 text-[#404e7c] dark:text-[#d0d2e5]" />
-                </button> */}
+                </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
@@ -702,7 +706,7 @@ export default function ProxyManagement() {
               </AnimatePresence>
             </motion.div>
           </motion.section>
-        )}
+        )} */}
       </AnimatePresence>
     </motion.div>
   );

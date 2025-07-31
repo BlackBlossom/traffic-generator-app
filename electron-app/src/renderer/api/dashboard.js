@@ -1,30 +1,20 @@
-// api/dashboard.js
-const API_BASE_URL = 'http://localhost:5000/api';
+// api/dashboard.js - Updated for IPC communication
 
 export const dashboardAPI = {
   /**
    * Get dashboard analytics
-   * @param {string} apiKey - User's API key
+   * @param {string} apiKey - User's API key (not used in IPC)
    * @param {string} email - User's email
    * @returns {Promise<Object>} Dashboard analytics data
    */
   async getAnalytics(apiKey, email) {
     try {
-      const response = await fetch(`${API_BASE_URL}/dashboard/${email}/analytics`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch dashboard analytics');
+      const result = await window.electronAPI.invoke('get-dashboard-analytics', email);
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to get dashboard analytics');
       }
-
-      return data.data;
     } catch (error) {
       console.error('Dashboard analytics API error:', error);
       throw error;
@@ -33,27 +23,18 @@ export const dashboardAPI = {
 
   /**
    * Refresh dashboard analytics
-   * @param {string} apiKey - User's API key
+   * @param {string} apiKey - User's API key (not used in IPC)
    * @param {string} email - User's email
    * @returns {Promise<Object>} Refreshed dashboard analytics
    */
   async refresh(apiKey, email) {
     try {
-      const response = await fetch(`${API_BASE_URL}/dashboard/${email}/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to refresh dashboard analytics');
+      const result = await window.electronAPI.invoke('refresh-dashboard-analytics', email);
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to refresh dashboard analytics');
       }
-
-      return data.data;
     } catch (error) {
       console.error('Dashboard refresh API error:', error);
       throw error;
@@ -62,27 +43,18 @@ export const dashboardAPI = {
 
   /**
    * Get quick dashboard stats
-   * @param {string} apiKey - User's API key
+   * @param {string} apiKey - User's API key (not used in IPC)
    * @param {string} email - User's email
    * @returns {Promise<Object>} Quick stats data
    */
   async getQuickStats(apiKey, email) {
     try {
-      const response = await fetch(`${API_BASE_URL}/dashboard/${email}/quick-stats`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch quick stats');
+      const result = await window.electronAPI.invoke('get-user-stats', email);
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to get user stats');
       }
-
-      return data.data;
     } catch (error) {
       console.error('Quick stats API error:', error);
       throw error;

@@ -29,7 +29,7 @@ router.post('/revoke-apikey', auth, authController.revokeApiKey);
 // All routes below are protected by API key middleware
 // router.use(apiKeyAuth);
 
-router.use('/users', userRoutes);
+// router.use('/users', userRoutes);
 
 module.exports = router;
 

@@ -9,7 +9,7 @@ export default function TitleBar() {
     >
       <div className="font-medium text-sm flex items-center"> 
         <img src={appIcon} alt="app-icon" className="inline-block w-5 h-5 bg-center mr-2"/> 
-        Traffica - The Website Traffic Generator
+        RST - Advance Website Seo Tool
       </div>
       {/* <div className="flex gap-0" style={{ WebkitAppRegion: 'no-drag' }}>
         <button

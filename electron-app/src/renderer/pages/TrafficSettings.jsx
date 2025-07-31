@@ -770,7 +770,8 @@ const INITIAL_DATA = {
   notes: '',
   adSelectors: '', // Comma-separated list of CSS selectors for ads to be clicked
   adsXPath: '', // Comma-separated list of X-path expressions for Google Ads containers
-  cookies: [] // Array of cookies to be set during sessions
+  cookies: [], // Array of cookies to be set during sessions
+  proxies: [], // Array of proxy servers to use
 }
 
 // Country list for geo targeting
@@ -826,7 +827,6 @@ export default function TrafficSettings() {
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const { user } = useUser()
-
   // Fetch campaigns function - separated for reusability
   const fetchUserCampaigns = async () => {
     if (!user || !user.apiKeys?.[0]?.key) {
@@ -868,7 +868,66 @@ export default function TrafficSettings() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [location.pathname]);
-  
+
+  // Proxy formatting and validation
+  const formatProxies = (proxyStrings) => {
+    if (!proxyStrings || !Array.isArray(proxyStrings)) return [];
+    
+    return proxyStrings
+      .filter(proxy => proxy && proxy.trim()) // Remove empty lines
+      .map(proxy => {
+        try {
+          const trimmed = proxy.trim();
+          
+          // Support different proxy formats:
+          // 1. username:password@host:port
+          // 2. host:port:username:password  
+          // 3. host:port (no auth)
+          
+          if (trimmed.includes('@')) {
+            // Format: username:password@host:port
+            const [auth, hostPort] = trimmed.split('@');
+            const [username, password] = auth.split(':');
+            const [host, port] = hostPort.split(':');
+            
+            return {
+              host: host?.trim() || '',
+              port: port?.trim() || '',
+              username: username?.trim() || '',
+              password: password?.trim() || ''
+            };
+          } else {
+            // Check if it's host:port:username:password format
+            const parts = trimmed.split(':');
+            if (parts.length === 4) {
+              return {
+                host: parts[0]?.trim() || '',
+                port: parts[1]?.trim() || '',
+                username: parts[2]?.trim() || '',
+                password: parts[3]?.trim() || ''
+              };
+            } else if (parts.length === 2) {
+              // Format: host:port (no auth)
+              return {
+                host: parts[0]?.trim() || '',
+                port: parts[1]?.trim() || '',
+                username: '',
+                password: ''
+              };
+            }
+          }
+          
+          // If we can't parse it, skip this proxy
+          console.warn(`Invalid proxy format: ${trimmed}`);
+          return null;
+        } catch (error) {
+          console.error(`Error parsing proxy: ${proxy}`, error);
+          return null;
+        }
+      })
+      .filter(proxy => proxy !== null && proxy.host && proxy.port); // Only keep valid proxies
+  };
+
   // Optimized change handlers - single functions that don't recreate
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -1048,32 +1107,105 @@ export default function TrafficSettings() {
     return ''
   }, [data, getDateValidation, getTimeValidation])
 
+  // Validation function with custom data (for handleSubmit with proxies)
+  const validateWithData = useCallback((customData) => {
+    const dataToValidate = customData || data;
+    
+    if (!dataToValidate.url || !/^https?:\/\/.+/.test(dataToValidate.url)) return 'Valid URL required'
+    if (dataToValidate.visitDurationMin < 5) return 'Minimum visit duration must be at least 5 seconds'
+    if (dataToValidate.visitDurationMax < 5) return 'Maximum visit duration must be at least 5 seconds'
+    if (dataToValidate.visitDurationMax < dataToValidate.visitDurationMin) return 'Maximum visit duration cannot be smaller than minimum visit duration'
+    if (dataToValidate.concurrent < 1) return 'Concurrent sessions must be at least 1'
+    if (dataToValidate.totalSessions && dataToValidate.totalSessions < 1) return 'Total sessions must be at least 1 or empty for unlimited'
+    if (dataToValidate.organic < 0 || dataToValidate.organic > 100) return 'Organic % must be 0-100'
+    if (dataToValidate.desktopPercentage < 0 || dataToValidate.desktopPercentage > 100) return 'Desktop % must be 0-100'
+    
+    // Validate proxies if present
+    if (dataToValidate.proxies && dataToValidate.proxies.length > 0) {
+      for (const proxy of dataToValidate.proxies) {
+        if (!proxy.host || !proxy.port) {
+          return 'All proxies must have valid host and port'
+        }
+        // Basic port validation
+        const portNum = parseInt(proxy.port);
+        if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+          return `Invalid port number: ${proxy.port}. Must be between 1-65535`
+        }
+      }
+    }
+    
+    // Use validation helpers for scheduling
+    if (dataToValidate.scheduling) {
+      if (!dataToValidate.startDate || !dataToValidate.endDate || !dataToValidate.startTime || !dataToValidate.endTime) return 'Set both start and end date/time for scheduling'
+      
+      const dateValidation = getDateValidation();
+      if (dateValidation.isStartInvalid) return dateValidation.startMessage;
+      if (dateValidation.isEndInvalid) return dateValidation.endMessage;
+      
+      const timeValidation = getTimeValidation();
+      if (timeValidation.isStartInvalid || timeValidation.isEndInvalid) return timeValidation.message;
+    }
+    
+    return ''
+  }, [data, getDateValidation, getTimeValidation])
+
   // Add campaign with optimized state management
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    const err = validate();
+    
+    // Check what's in localStorage
+    const storedProxies = localStorage.getItem('proxies');
+    console.log('📋 localStorage proxies raw:', storedProxies);
+    
+    // Process proxies from localStorage before validation
+    const proxyStrings = localStorage.getItem('proxies')?.split('\n') || [];
+    const formattedProxies = formatProxies(proxyStrings);
+
+    console.log('🔍 TrafficSettings handleSubmit debug:', {
+      proxyStrings,
+      formattedProxies,
+      proxyStringsLength: proxyStrings.length,
+      formattedProxiesLength: formattedProxies.length
+    });
+
+    // Update data with formatted proxies
+    const updatedData = { 
+      ...data, 
+      proxies: formattedProxies 
+    };
+    
+    console.log('📤 Sending campaign data:', {
+      ...updatedData,
+      proxies: updatedData.proxies ? `${updatedData.proxies.length} proxies` : 'No proxies'
+    });
+    
+    // Validate with updated data
+    const err = validateWithData(updatedData);
     if (err) {
       setError(err);
       return;
     }
+    
     if (!user || !user.apiKeys?.[0]?.key) {
       setError("User authentication required.");
       return;
     }
+    
     setLoading(true);
     try {
-      const resp = await createCampaign(user.email, user.apiKeys[0].key, data);
+      const resp = await createCampaign(user.email, user.apiKeys[0].key, updatedData);
       setSuccess(resp.message || "Campaign created successfully!");
       setData(INITIAL_DATA);
+      localStorage.removeItem('proxies'); // Clear proxies after successful creation
       // Refetch campaigns only after successful creation
       await fetchUserCampaigns();
     } catch (err) {
       setError("Error creating campaign.");
     }
     setLoading(false);
-  }, [data, validate, user, fetchUserCampaigns]);
+  }, [data, user, fetchUserCampaigns]);
 
   // Reset form with optimized state management
   const handleReset = useCallback(() => {
@@ -1086,6 +1218,7 @@ export default function TrafficSettings() {
     })
     setError('')
     setSuccess('')
+    localStorage.removeItem('proxies') // Clear proxies on reset
   }, [])
 
   // Optimized delete dialog handlers
@@ -1235,7 +1368,7 @@ export default function TrafficSettings() {
       {/* Page Heading */}
       <motion.div variants={sectionVariants} custom={0} className="text-center sm:text-left">
         <h1 className="text-2xl sm:text-3xl font-bold text-[#260f26] dark:text-[#86cb92]">
-          Traffic Settings
+          SEO Campaign Settings
         </h1>
         <p className="text-base sm:text-lg text-[#598185] dark:text-[#d0d2e5] mt-2">
           Configure new traffic campaigns, schedule runs, and manage referral sources.

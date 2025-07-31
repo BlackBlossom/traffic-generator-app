@@ -14,7 +14,7 @@ import {
 import TooltipBox from '../components/TooltipBox'
 import { dashboardAPI } from '../api/dashboard'
 import { useUser } from '../context/UserContext'
-import { useWebSocketLogs } from '../context/WebSocketLogContext'
+import { useWebSocketLogs } from '../context/IPCLogContext'
 
 export default function Dashboard() {
   const location = useLocation();
@@ -91,17 +91,45 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Process WebSocket logs for real-time session tracking
+  // Process IPC logs for real-time session tracking
   useEffect(() => {
     if (logs && logs.length > 0) {
-      const recentLogs = logs.slice(-10); // Get last 10 logs
+      const recentLogs = logs.slice(0, 20); // Get last 20 logs
       const newActiveSessions = new Set();
       
       recentLogs.forEach(log => {
-        if (log.sessionId && log.level === 'info' && log.message.includes('Session')) {
-          if (log.message.includes('starting') || log.message.includes('Launching')) {
-            newActiveSessions.add(log.sessionId);
-          } else if (log.message.includes('completed') || log.message.includes('closed')) {
+        // Handle both formatted string logs and raw log objects
+        let sessionId, message, level;
+        
+        if (typeof log === 'string') {
+          // Parse formatted log string: "[timestamp] Level: [sessionId] message"
+          const match = log.match(/\[([^\]]+)\]\s*(\w+):\s*\[([^\]]+)\]\s*(.+)/);
+          if (match) {
+            level = match[2].toLowerCase();
+            sessionId = match[3];
+            message = match[4];
+          }
+        } else if (typeof log === 'object') {
+          // Use raw log object
+          sessionId = log.sessionId;
+          message = log.message;
+          level = log.level;
+        }
+        
+        if (sessionId && sessionId !== 'main-process' && sessionId !== 'system' && sessionId !== 'traffic-worker') {
+          if (level === 'info' && message && (
+            message.includes('starting') || 
+            message.includes('Launching') || 
+            message.includes('Session started') ||
+            message.includes('browser with proxy')
+          )) {
+            newActiveSessions.add(sessionId);
+          } else if (message && (
+            message.includes('completed') || 
+            message.includes('closed') || 
+            message.includes('Session ended') ||
+            message.includes('Browser closed')
+          )) {
             // Session ended - will be removed from active set
           }
         }

@@ -1,16 +1,12 @@
-// src/renderer/api/analytics.js
-import { authFetch } from './auth';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-
+// src/renderer/api/analytics.js - Updated for IPC communication
 // Helper to get user email from localStorage
 function getUserEmail() {
-  return localStorage.getItem('traffica_user_email');
+  return localStorage.getItem('rst_user_email');
 }
 
 export const analyticsAPI = {
   /**
-   * Get traffic analytics overview data
+   * Get SEO analytics overview data
    */
   async getOverview(campaignIds = null, apiKey = null) {
     try {
@@ -19,15 +15,12 @@ export const analyticsAPI = {
         throw new Error('User email not found. Please log in again.');
       }
       
-      const params = campaignIds ? `?campaignIds=${campaignIds.join(',')}` : '';
-      const response = await authFetch(`${API_BASE_URL}/analytics/${userEmail}/overview${params}`, {}, apiKey);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await window.electronAPI.invoke('get-analytics-overview', userEmail, campaignIds);
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to get analytics overview');
       }
-      
-      const result = await response.json();
-      return result.data;
     } catch (error) {
       console.error('Error fetching analytics overview:', error);
       throw error;
@@ -44,14 +37,12 @@ export const analyticsAPI = {
         throw new Error('User email not found. Please log in again.');
       }
       
-      const response = await authFetch(`${API_BASE_URL}/analytics/${userEmail}/live-sessions`, {}, apiKey);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await window.electronAPI.invoke('get-live-sessions', userEmail, limit);
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to get live sessions');
       }
-      
-      const result = await response.json();
-      return result.data;
     } catch (error) {
       console.error('Error fetching live sessions:', error);
       throw error;
@@ -68,17 +59,16 @@ export const analyticsAPI = {
         throw new Error('User email not found. Please log in again.');
       }
       
-      const response = await authFetch(`${API_BASE_URL}/analytics/${userEmail}/session-history?limit=${limit}`, {}, apiKey);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await window.electronAPI.invoke('get-session-history', userEmail, limit);
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to get session history');
       }
-      
-      const result = await response.json();
-      return result.data;
     } catch (error) {
       console.error('Error fetching session history:', error);
-      throw error;
+      // Return empty array as fallback to prevent UI errors
+      return [];
     }
   },
 
@@ -92,14 +82,12 @@ export const analyticsAPI = {
         throw new Error('User email not found. Please log in again.');
       }
       
-      const response = await authFetch(`${API_BASE_URL}/analytics/${userEmail}/campaign/${campaignId}`, {}, apiKey);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await window.electronAPI.invoke('get-campaign-analytics', userEmail, campaignId);
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to get campaign analytics');
       }
-      
-      const result = await response.json();
-      return result.data;
     } catch (error) {
       console.error('Error fetching campaign analytics:', error);
       throw error;
@@ -116,14 +104,12 @@ export const analyticsAPI = {
         throw new Error('User email not found. Please log in again.');
       }
       
-      const response = await authFetch(`${API_BASE_URL}/analytics/${userEmail}/stats`, {}, apiKey);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await window.electronAPI.invoke('get-user-stats', userEmail);
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to get stats');
       }
-      
-      const result = await response.json();
-      return result.data;
     } catch (error) {
       console.error('Error fetching analytics stats:', error);
       throw error;
