@@ -3,7 +3,7 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const API_BASE = `${API_URL}/api/auth`;
+const API_BASE = `http://139.59.229.34:5000/api/auth`;
 
 // Helper to get authentication headers
 function getAuthHeaders(apiKey) {

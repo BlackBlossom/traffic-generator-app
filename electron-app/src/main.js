@@ -1,7 +1,5 @@
 const { app, ipcMain, BrowserWindow } = require('electron');
 const path = require('node:path');
-const started = require('electron-squirrel-startup');
-const AutoLaunch = require('auto-launch');
 
 // Import main services and IPC handlers
 const mainService = require('./main/mainService');
@@ -9,11 +7,40 @@ const { initializeAllIpcHandlers } = require('./main/ipcHandlers');
 const logEventHub = require('./main/services/logEventHub');
 const sqliteLogger = require('./main/services/sqliteLogger');
 
-// Initialize AutoLaunch
-const launcher = new AutoLaunch({
-  name: 'RST - Advance Website Seo Tool',
-  path: app.getPath('exe'),
-});
+// Handle electron-squirrel-startup safely
+let started = false;
+try {
+  // Only try to load electron-squirrel-startup if we're on Windows and in a packaged app
+  if (process.platform === 'win32' && app.isPackaged) {
+    const squirrelStartup = require('electron-squirrel-startup');
+    started = squirrelStartup;
+  }
+} catch (error) {
+  console.log('electron-squirrel-startup not available or failed to load, continuing...');
+  started = false;
+}
+
+// Initialize AutoLaunch safely - more specific error checking
+let launcher = null;
+let autoLaunchAvailable = false;
+try {
+  const AutoLaunch = require('auto-launch');
+  launcher = new AutoLaunch({
+    name: 'RST - Advance Website Seo Tool',
+    path: app.getPath('exe'),
+  });
+  autoLaunchAvailable = true;
+  console.log('✅ auto-launch loaded successfully');
+} catch (error) {
+  if (error.code === 'MODULE_NOT_FOUND') {
+    console.log('⚠️ auto-launch not available, auto-startup features will be disabled');
+    autoLaunchAvailable = false;
+  } else {
+    console.error('❌ Error loading auto-launch:', error.message);
+    autoLaunchAvailable = false;
+  }
+  launcher = null;
+}
 
 // Track IPC handlers initialization to prevent duplicates
 let ipcHandlersInitialized = false;
@@ -108,6 +135,7 @@ app.whenReady().then(async () => {
       try {
         initializeAllIpcHandlers();
         ipcHandlersInitialized = true;
+        console.log('✅ IPC handlers initialized successfully');
       } catch (ipcError) {
         console.error('❌ Failed to initialize IPC handlers:', ipcError);
       }
@@ -219,6 +247,10 @@ ipcMain.handle('restart-services', async () => {
 // Auto-launch functionality
 const enableStartup = async () => {
   try {
+    if (!launcher) {
+      console.log('Auto-launch not available');
+      return false;
+    }
     await launcher.enable();
     return true;
   } catch (error) {
@@ -229,6 +261,10 @@ const enableStartup = async () => {
 
 const disableStartup = async () => {
   try {
+    if (!launcher) {
+      console.log('Auto-launch not available');
+      return false;
+    }
     await launcher.disable();
     return true;
   } catch (error) {
@@ -239,6 +275,9 @@ const disableStartup = async () => {
 
 const isStartupEnabled = async () => {
   try {
+    if (!launcher) {
+      return false;
+    }
     return await launcher.isEnabled();
   } catch (error) {
     console.error('❌ Failed to check startup status:', error);

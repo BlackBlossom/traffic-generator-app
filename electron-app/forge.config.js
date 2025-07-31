@@ -4,7 +4,7 @@ const { VitePlugin } = require('@electron-forge/plugin-vite');
 
 module.exports = {
   packagerConfig: {
-    asar: true,
+    asar: false, // Disable ASAR to copy all node_modules as-is
     icon: './public/app-icon', // No extension here
   },
   rebuildConfig: {},
@@ -58,8 +58,8 @@ module.exports = {
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,
+      [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
 };

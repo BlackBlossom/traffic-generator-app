@@ -1,4 +1,16 @@
-const mongoose = require('mongoose');
+// Handle mongoose safely
+let mongoose = null;
+try {
+  mongoose = require('mongoose');
+} catch (error) {
+  console.log('mongoose not available, Campaign model disabled');
+}
+
+// Only define schemas if mongoose is available
+if (!mongoose) {
+  module.exports = null;
+  return;
+}
 
 const SocialSchema = new mongoose.Schema({
   Facebook: { type: Boolean, required: true },

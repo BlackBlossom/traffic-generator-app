@@ -2,6 +2,7 @@
 // SQLite-based logging service for campaign traffic sessions
 
 const Database = require('better-sqlite3');
+
 const path = require('path');
 const { app, BrowserWindow } = require('electron');
 

@@ -1,22 +1,28 @@
-require('dotenv').config();
+// Handle dotenv safely
+try {
+  require('dotenv').config();
+} catch (error) {
+  console.log('dotenv not available, continuing without environment file loading...');
+}
+
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { KnownDevices } = require('puppeteer');
 const UserAgent = require('user-agents');
+const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const sqliteLogger = require('../services/sqliteLogger');
 const logEventHub = require('../services/logEventHub');
 const campaignAnalytics = require('../services/campaignAnalytics');
 const url = require('url');
 
+puppeteer.use(StealthPlugin());
+
 // Python integration imports
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { v4: uuidv4 } = require('uuid');
-
-puppeteer.use(StealthPlugin());
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;

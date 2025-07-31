@@ -5,7 +5,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
-const redisLogger = require('./services/redisLogger'); // Initialize Redis logger
+// const redisLogger = require('./services/redisLogger'); // Initialize Redis logger
 const trafficAnalytics = require('./services/trafficAnalytics'); // Initialize traffic analytics
 const campaignScheduler = require('./services/campaignScheduler'); // Import campaign scheduler
 

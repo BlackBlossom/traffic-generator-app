@@ -55,15 +55,11 @@ export default defineConfig({
         'node:url', 
         'node:fs',
         'node:os',
-        'electron-squirrel-startup',
-        'mongoose',
-        'dotenv',
-        'bcryptjs',
-        'puppeteer-extra',
-        'puppeteer-extra-plugin-stealth',
-        'puppeteer',
-        'user-agents',
-        'node-cron'
+        'node:crypto',
+        'node:stream',
+        'node:util',
+        'node:events',
+        'electron-squirrel-startup'
       ]
     },
     target: 'node16', // Ensure Node.js compatibility

@@ -1,4 +1,16 @@
-const mongoose = require('mongoose');
+// Handle mongoose safely
+let mongoose = null;
+try {
+  mongoose = require('mongoose');
+} catch (error) {
+  console.log('mongoose not available, User model disabled');
+}
+
+// Only define schema if mongoose is available
+if (!mongoose) {
+  module.exports = null;
+  return;
+}
 
 const userSchema = new mongoose.Schema({
   name: {

@@ -1,6 +1,12 @@
-// mainService.js - Main application service for database and business logic
-require('dotenv').config();
+// Handle dotenv safely
+try {
+  require('dotenv').config();
+} catch (error) {
+  console.log('dotenv not available, continuing without environment file loading...');
+}
+
 const mongoose = require('mongoose');
+
 const connectDB = require('./config/db');
 const trafficAnalytics = require('./services/trafficAnalytics');
 const campaignScheduler = require('./services/campaignScheduler');
@@ -72,6 +78,12 @@ class MainService {
    */
   async waitForMongoConnection() {
     return new Promise((resolve, reject) => {
+      if (!mongoose) {
+        console.log('MongoDB not available, skipping connection wait');
+        resolve();
+        return;
+      }
+      
       if (mongoose.connection.readyState === 1) {
         resolve();
         return;
@@ -146,7 +158,7 @@ class MainService {
       status: this.isInitialized ? 'OK' : 'INITIALIZING',
       timestamp: new Date().toISOString(),
       services: {
-        mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        mongodb: mongoose && mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
         campaignScheduler: campaignScheduler.isInitialized ? 'Running' : 'Stopped',
         analyticsService: 'Running',
         logEventHub: 'Running'
@@ -177,7 +189,7 @@ class MainService {
       }
 
       // Close MongoDB connection
-      if (mongoose.connection.readyState === 1) {
+      if (mongoose && mongoose.connection.readyState === 1) {
         await mongoose.connection.close();
         console.log('✅ MongoDB connection closed');
       }
