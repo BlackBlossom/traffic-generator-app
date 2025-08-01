@@ -25,7 +25,8 @@ import {
   getUserCampaigns, 
   createCampaign, 
   deleteCampaign,
-  stopCampaign
+  stopCampaign,
+  updateCampaign
 } from '../api/auth'
 import CalendarPicker from '../components/CalendarPicker'
 
@@ -845,6 +846,8 @@ export default function TrafficSettings() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [campaignToDelete, setCampaignToDelete] = useState(null);
   const [stoppingCampaignId, setStoppingCampaignId] = useState(null);
+  const [campaignToEdit, setCampaignToEdit] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [loading, setLoading] = useState(false)
   const [campaignsLoading, setCampaignsLoading] = useState(true)
   const [success, setSuccess] = useState('')
@@ -1172,7 +1175,7 @@ export default function TrafficSettings() {
     return ''
   }, [data, getDateValidation, getTimeValidation])
 
-  // Add campaign with optimized state management
+  // Add campaign or update existing campaign
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError('');
@@ -1190,7 +1193,9 @@ export default function TrafficSettings() {
       proxyStrings,
       formattedProxies,
       proxyStringsLength: proxyStrings.length,
-      formattedProxiesLength: formattedProxies.length
+      formattedProxiesLength: formattedProxies.length,
+      isEditMode,
+      campaignToEdit: campaignToEdit?.id || campaignToEdit?._id
     });
 
     // Update data with formatted proxies
@@ -1218,17 +1223,47 @@ export default function TrafficSettings() {
     
     setLoading(true);
     try {
-      const resp = await createCampaign(user.email, user.apiKeys[0].key, updatedData);
-      setSuccess(resp.message || "Campaign created successfully!");
-      setData(INITIAL_DATA);
-      localStorage.removeItem('proxies'); // Clear proxies after successful creation
-      // Refetch campaigns only after successful creation
-      await fetchUserCampaigns();
+      if (isEditMode && campaignToEdit) {
+        // Update existing campaign
+        const result = await updateCampaign(
+          user.email, 
+          campaignToEdit.id || campaignToEdit._id, 
+          user.apiKeys[0].key, 
+          updatedData
+        );
+        
+        setSuccess("Campaign updated successfully!");
+        
+        // Update campaigns state directly
+        setCampaigns(prev => prev.map(c => 
+          (c.id || c._id) === (campaignToEdit.id || campaignToEdit._id) ? result : c
+        ));
+        
+        // Exit edit mode and reset form
+        setIsEditMode(false);
+        setCampaignToEdit(null);
+      } else {
+        // Create new campaign
+        const resp = await createCampaign(user.email, user.apiKeys[0].key, updatedData);
+        setSuccess(resp.message || "Campaign created successfully!");
+        // Refetch campaigns only after successful creation
+        await fetchUserCampaigns();
+      }
+      
+      // Reset form
+      setData({
+        ...INITIAL_DATA,
+        startDate: getTodayDate(),
+        endDate: getTodayDate(),
+        startTime: getInitialStartTime(),
+        endTime: ''
+      });
+      localStorage.removeItem('proxies'); // Clear proxies after successful creation/update
     } catch (err) {
-      setError("Error creating campaign.");
+      setError(isEditMode ? `Failed to update campaign: ${err.message}` : "Error creating campaign.");
     }
     setLoading(false);
-  }, [data, user, fetchUserCampaigns]);
+  }, [data, user, fetchUserCampaigns, isEditMode, campaignToEdit]);
 
   // Reset form with optimized state management
   const handleReset = useCallback(() => {
@@ -1241,6 +1276,8 @@ export default function TrafficSettings() {
     })
     setError('')
     setSuccess('')
+    setIsEditMode(false)
+    setCampaignToEdit(null)
     localStorage.removeItem('proxies') // Clear proxies on reset
   }, [])
 
@@ -1295,8 +1332,95 @@ export default function TrafficSettings() {
     setStoppingCampaignId(null);
   }, [user]);
 
+  // Helper function to check if a campaign can be edited (5 minutes before start time)
+  const canEditCampaign = useCallback((campaign) => {
+    if (!campaign.scheduling || !campaign.startDate || !campaign.startTime) {
+      return false; // Can't edit non-scheduled campaigns or campaigns without proper scheduling info
+    }
+    
+    const now = new Date();
+    const startDateTime = new Date(`${campaign.startDate}T${campaign.startTime}:00`);
+    const timeDifference = startDateTime - now;
+    const fiveMinutesInMs = 5 * 60 * 1000; // 5 minutes in milliseconds
+    
+    // Can edit if start time is more than 5 minutes away
+    return timeDifference > fiveMinutesInMs;
+  }, []);
+
+  // Edit dialog handlers
+  const openEditDialog = useCallback((campaign) => {
+    setCampaignToEdit(campaign);
+    setIsEditMode(true);
+    // Populate main form with campaign data
+    setData({
+      url: campaign.url || '',
+      visitDurationMin: campaign.visitDurationMin || campaign.visitDuration || 30,
+      visitDurationMax: campaign.visitDurationMax || campaign.visitDuration || 30,
+      delay: campaign.delay || 0,
+      bounceRate: campaign.bounceRate || 50,
+      concurrent: campaign.concurrent || 1,
+      totalSessions: campaign.totalSessions || null,
+      scrolling: campaign.scrolling || false,
+      organic: campaign.organic || 70,
+      directTraffic: campaign.directTraffic || 30,
+      searchEngine: campaign.searchEngine || 'Google',
+      searchKeywords: campaign.searchKeywords || '',
+      headfulPercentage: campaign.headfulPercentage || 0,
+      desktopPercentage: campaign.desktopPercentage || 70,
+      scheduling: campaign.scheduling || false,
+      startDate: campaign.startDate || '',
+      endDate: campaign.endDate || '',
+      startTime: campaign.startTime || '',
+      endTime: campaign.endTime || '',
+      social: campaign.social || { Facebook: false, Twitter: false, Instagram: false, LinkedIn: false },
+      custom: campaign.custom || '',
+      geo: campaign.geo || 'Global',
+      device: campaign.device || 'both',
+      cookies: campaign.cookies || [],
+      proxies: campaign.proxies || [],
+      notes: campaign.notes || ''
+    });
+    
+    // Store proxies in localStorage for the form
+    if (campaign.proxies && campaign.proxies.length > 0) {
+      const proxyStrings = campaign.proxies.map(proxy => {
+        if (proxy.username && proxy.password) {
+          return `${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`;
+        } else {
+          return `${proxy.host}:${proxy.port}`;
+        }
+      });
+      localStorage.setItem('proxies', proxyStrings.join('\n'));
+    } else {
+      localStorage.removeItem('proxies');
+    }
+    
+    // Scroll to top of form
+    const scroller = document.querySelector('.main-scrollable');
+    if (scroller) {
+      scroller.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
+
+  const handleEditCancel = useCallback(() => {
+    setIsEditMode(false);
+    setCampaignToEdit(null);
+    setData({
+      ...INITIAL_DATA,
+      startDate: getTodayDate(),
+      endDate: getTodayDate(),
+      startTime: getInitialStartTime(),
+      endTime: ''
+    });
+    localStorage.removeItem('proxies');
+    setError('');
+    setSuccess('');
+  }, []);
+
   // --- Campaign List Section Component ---
-  function CampaignSection({ title, icon: Icon, campaigns, onDeleteClick, onStopClick, emptyText, showStop, showDelete = true }) {
+  function CampaignSection({ title, icon: Icon, campaigns, onDeleteClick, onStopClick, onEditClick, emptyText, showStop, showDelete = true, showEdit = false }) {
     return (
       <motion.section className="bg-white dark:bg-[#1c1b2f]/70 border-0 border-[#598185]/40 dark:border-[#86cb92]/40 rounded-2xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8"
         initial={{ opacity: 0, y: 24 }}
@@ -1329,7 +1453,7 @@ export default function TrafficSettings() {
                   {/* Stop Button for Active Campaigns */}
                   {showStop && (
                     <button
-                      className="px-2 sm:px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600 transition text-xs sm:text-sm order-2 sm:order-1"
+                      className="px-2 sm:px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600 transition text-xs sm:text-sm order-3 sm:order-1"
                       onClick={() => onStopClick(c.id || c._id)}
                       disabled={stoppingCampaignId === (c.id || c._id)}
                     >
@@ -1340,10 +1464,30 @@ export default function TrafficSettings() {
                       )}
                     </button>
                   )}
+                  {/* Edit Button for Scheduled Campaigns */}
+                  {showEdit && onEditClick && (
+                    <button
+                      className={`p-1 rounded transition order-1 sm:order-2 ${
+                        canEditCampaign(c) 
+                          ? 'hover:bg-blue-100 dark:hover:bg-blue-900/20' 
+                          : 'opacity-50 cursor-not-allowed'
+                      }`}
+                      onClick={() => canEditCampaign(c) && onEditClick(c)}
+                      disabled={!canEditCampaign(c)}
+                      aria-label={canEditCampaign(c) ? "Edit campaign" : "Cannot edit campaign (starts in less than 5 minutes)"}
+                      title={canEditCampaign(c) ? "Edit campaign" : "Cannot edit campaign (starts in less than 5 minutes)"}
+                    >
+                      <PencilIcon className={`w-4 h-4 transition ${
+                        canEditCampaign(c) 
+                          ? 'text-blue-600 hover:text-blue-800' 
+                          : 'text-gray-400'
+                      }`} />
+                    </button>
+                  )}
                   {/* Delete Button */}
                   {showDelete && (
                     <button
-                      className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition order-1 sm:order-2"
+                      className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition order-2 sm:order-3"
                       onClick={() => onDeleteClick(c.id || c._id)}
                       aria-label="Delete campaign"
                     >
@@ -1411,7 +1555,8 @@ export default function TrafficSettings() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Cog6ToothIcon className="w-5 h-5 sm:w-6 sm:h-6" /> Create Campaign
+          <Cog6ToothIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+          {isEditMode ? 'Edit Campaign' : 'Create Campaign'}
         </motion.div>
 
         {/* Feedback */}
@@ -1722,6 +1867,16 @@ export default function TrafficSettings() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.15 }}
         >
+          {isEditMode && (
+            <button
+              type="button"
+              className="mt-4 px-4 py-2 bg-gray-200 dark:bg-[#333762] text-[#404e7c] dark:text-[#d0d2e5] rounded-lg transition hover:bg-gray-300 hover:dark:bg-[#404e7c] flex items-center justify-center"
+              onClick={handleEditCancel}
+              disabled={loading}
+            >
+              <XMarkIcon className="inline w-5 h-5 mr-1" /> Cancel
+            </button>
+          )}
           <button
             type="button"
             className="mt-4 px-4 py-2 bg-gray-200 dark:bg-[#333762] text-[#404e7c] dark:text-[#d0d2e5] rounded-lg transition hover:bg-gray-300 hover:dark:bg-[#404e7c] flex items-center justify-center"
@@ -1740,7 +1895,7 @@ export default function TrafficSettings() {
                 <circle cx="12" cy="12" r="10" fill="none" stroke="white" strokeWidth="4" />
               </svg>
             ) : null}
-            Create Campaign
+            {isEditMode ? 'Update Campaign' : 'Create Campaign'}
           </button>
         </motion.div>
       </motion.form>
@@ -1763,8 +1918,10 @@ export default function TrafficSettings() {
         icon={CalendarIcon}
         campaigns={scheduledCampaigns}
         onDeleteClick={openDeleteDialog}
+        onEditClick={openEditDialog}
         emptyText="No scheduled campaigns."
         showStop={false}
+        showEdit={true}
       />
 
       {/* Previous Campaigns */}
@@ -1831,6 +1988,7 @@ export default function TrafficSettings() {
           </div>
         </Dialog>
       </Transition>
+
     </motion.div>
   )
 }

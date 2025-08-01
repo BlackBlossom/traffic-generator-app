@@ -59,7 +59,33 @@ export default defineConfig({
         'node:stream',
         'node:util',
         'node:events',
-        'electron-squirrel-startup'
+        'electron-squirrel-startup',
+        // Database and external dependencies
+        'mongoose',
+        'better-sqlite3',
+        'puppeteer',
+        'puppeteer-core',
+        'puppeteer-extra',
+        'puppeteer-extra-plugin-stealth',
+        'user-agents',
+        'uuid',
+        'dotenv',
+        'auto-launch',
+        'node-cron',
+        'bcryptjs',
+        'axios',
+        // Node.js built-in modules (without node: prefix for compatibility)
+        'child_process',
+        'fs',
+        'path',
+        'os',
+        'crypto',
+        'stream',
+        'util',
+        'events',
+        'http',
+        'https',
+        'url'
       ]
     },
     target: 'node16', // Ensure Node.js compatibility

@@ -3,7 +3,7 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const API_BASE = `http://139.59.229.34:5000/api/auth`;
+const API_BASE = `http://traffic.proxytest.online/api/auth`;
 
 // Helper to get authentication headers
 function getAuthHeaders(apiKey) {
@@ -292,58 +292,5 @@ export async function stopCampaign(email, campaignId, apiKey) {
     return result;
   } catch (error) {
     throw new Error(`Failed to stop campaign: ${error.message}`);
-  }
-}
-
-// ---User Profile API Endpoints--- (IPC-based)
-
-// Get user profile
-export async function getUserProfile() {
-  try {
-    const email = getStoredEmail();
-    if (!email) {
-      throw new Error('No email found in localStorage.');
-    }
-    
-    const result = await window.electronAPI.invoke('get-user-profile', email);
-    return { success: true, ...result };
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-}
-
-// Update user profile (IPC version)
-export async function updateUserProfile(updateData) {
-  try {
-    const email = getStoredEmail();
-    if (!email) {
-      throw new Error('No email found in localStorage.');
-    }
-    
-    const result = await window.electronAPI.invoke('update-user-profile', email, updateData);
-    
-    // If email was changed, update in localStorage
-    if (updateData.newEmail && updateData.newEmail !== email) {
-      localStorage.setItem('rst_user_email', updateData.newEmail);
-    }
-    
-    return { success: true, ...result };
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-}
-
-// Change password (IPC version)
-export async function changeUserPassword(oldPassword, newPassword) {
-  try {
-    const email = getStoredEmail();
-    if (!email) {
-      throw new Error('No email found in localStorage.');
-    }
-    
-    const result = await window.electronAPI.invoke('change-password', email, oldPassword, newPassword);
-    return { success: true, ...result };
-  } catch (error) {
-    return { success: false, message: error.message };
   }
 }
