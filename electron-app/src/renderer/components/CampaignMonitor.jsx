@@ -554,11 +554,11 @@ export default function CampaignMonitor({
       <div
         ref={logsContainerRef}
         onScroll={handleScroll}
-        className="h-96 overflow-y-auto rounded-b-2xl bg-[#1a1a1a] text-green-400 font-mono text-sm p-4"
+        className="h-96 w-full overflow-y-auto overflow-x-hidden rounded-b-2xl bg-[#1a1a1a] text-green-400 font-mono text-sm p-4"
       >
         {!isMonitoring ? (
           <div className="flex items-center justify-center h-full text-gray-500">
-            Click "Start" to begin monitoring campaign logs
+            Click "Open Logs" to begin monitoring campaign logs
           </div>
         ) : filteredLogs.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
@@ -576,27 +576,29 @@ export default function CampaignMonitor({
                   className="flex items-start gap-2 group hover:bg-white/5 px-1 py-0.5 rounded"
                 >
                   <Icon className={`w-3 h-3 mt-0.5 flex-shrink-0 ${LogLevelColors[log.level]}`} />
-                  <span className="text-gray-400 text-xs min-w-[80px]">
+                  <span className="text-gray-400 text-xs min-w-[80px] flex-shrink-0">
                     {formatTimestamp(log.timestamp)}
                   </span>
                   {log.sessionId && (
-                    <span className={`text-xs min-w-[60px] font-bold ${
+                    <span className={`text-xs min-w-[60px] flex-shrink-0 font-bold ${
                       log.isSystem ? 'text-orange-400' : 'text-blue-400'
                     }`}>
                       [{log.isSystem ? 'SYSTEM' : log.sessionId}]
                     </span>
                   )}
-                  <span className={`flex-1 ${LogLevelColors[log.level]} ${
+                  <span className={`flex-1 min-w-0 break-words break-all whitespace-pre-wrap ${LogLevelColors[log.level]} ${
                     log.isSystem ? 'font-medium' : ''
-                  }`}>
+                  }`} style={{wordBreak: 'break-all'}}>
                     {log.message}
                   </span>
-                  {!log.isRealtime && (
-                    <span className="text-xs text-gray-600">📋</span>
-                  )}
-                  {log.isSystem && (
-                    <span className="text-xs text-orange-600">🔧</span>
-                  )}
+                  <div className="flex-shrink-0 flex items-center gap-1">
+                    {!log.isRealtime && (
+                      <span className="text-xs text-gray-600">📋</span>
+                    )}
+                    {log.isSystem && (
+                      <span className="text-xs text-orange-600">🔧</span>
+                    )}
+                  </div>
                 </motion.div>
               );
             })}

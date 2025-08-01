@@ -1,4 +1,3 @@
-
 import asyncio
 import random
 import time
@@ -75,8 +74,41 @@ import aiohttp
 from bs4 import BeautifulSoup
 import google.generativeai as genai
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, quote_plus
 import traceback
+
+# Search engine URL templates
+SEARCH_ENGINES = {
+    'Google': 'https://www.google.com/search?q={query}',
+    'Yahoo': 'https://search.yahoo.com/search?p={query}',
+    'Bing': 'https://www.bing.com/search?q={query}',
+    'DuckDuckGo': 'https://duckduckgo.com/?q={query}',
+    'Baidu': 'https://www.baidu.com/s?wd={query}',
+    'Yandex': 'https://yandex.com/search/?text={query}',
+    'Ask': 'https://www.ask.com/web?q={query}',
+    'Ecosia': 'https://www.ecosia.org/search?q={query}'
+}
+
+def get_search_url(engine: str, keywords: str) -> str:
+    """Generate search URL for given engine and keywords"""
+    if not keywords or not engine:
+        return None
+    
+    # Clean and encode keywords
+    encoded_keywords = quote_plus(keywords.strip())
+    
+    # Get search engine template
+    template = SEARCH_ENGINES.get(engine, SEARCH_ENGINES['Google'])
+    
+    return template.format(query=encoded_keywords)
+
+def should_use_direct_traffic() -> bool:
+    """Determine if this session should use direct traffic based on directTraffic percentage"""
+    if not hasattr(Config, 'DIRECT_TRAFFIC') or Config.DIRECT_TRAFFIC <= 0:
+        return False
+    
+    import random
+    return random.randint(1, 100) <= Config.DIRECT_TRAFFIC
 
 # Suppress asyncio warnings on Windows
 warnings.filterwarnings("ignore", category=ResourceWarning)
@@ -119,6 +151,10 @@ class Config:
     INTERACTION_DELAY_MIN = float(os.getenv("INTERACTION_DELAY_MIN", "0.5"))
     INTERACTION_DELAY_MAX = float(os.getenv("INTERACTION_DELAY_MAX", "3.0"))
     AD_DETECTION_THRESHOLD = float(os.getenv("AD_DETECTION_THRESHOLD", "0.8"))
+    # Resource loading configuration
+    LOAD_CSS = os.getenv("LOAD_CSS", "true").lower() == "true"
+    LOAD_FONTS = os.getenv("LOAD_FONTS", "false").lower() == "true"
+    LOAD_MEDIA = os.getenv("LOAD_MEDIA", "false").lower() == "true"
 
 # -- Update config from Node orchestrator, if set --
 if NODE_AUTOMATION_CONFIG:
@@ -126,6 +162,11 @@ if NODE_AUTOMATION_CONFIG:
     Config.BROWSER = NODE_AUTOMATION_CONFIG.get('browser', 'chromium')
     Config.DURATION = NODE_AUTOMATION_CONFIG.get('duration_seconds', 60)
     Config.PROXY = NODE_AUTOMATION_CONFIG.get('proxy', None)
+    
+    # Resource loading configuration from Node.js
+    Config.LOAD_CSS = bool(NODE_AUTOMATION_CONFIG.get('loadCSS', Config.LOAD_CSS))
+    Config.LOAD_FONTS = bool(NODE_AUTOMATION_CONFIG.get('loadFonts', Config.LOAD_FONTS))
+    Config.LOAD_MEDIA = bool(NODE_AUTOMATION_CONFIG.get('loadMedia', Config.LOAD_MEDIA))
     
     # Format proxy for Playwright if needed
     if Config.PROXY and isinstance(Config.PROXY, dict):
@@ -149,10 +190,11 @@ if NODE_AUTOMATION_CONFIG:
     Config.SESSION_ID = NODE_AUTOMATION_CONFIG.get('sessionId', secrets.token_urlsafe(7)[:7])
     Config.CAMPAIGN_ID = NODE_AUTOMATION_CONFIG.get('campaignId', None)
     Config.USER_EMAIL = NODE_AUTOMATION_CONFIG.get('userEmail', None)
-    Config.AD_SELECTORS = NODE_AUTOMATION_CONFIG.get('adSelectors', '')
-    Config.ADS_XPATH = NODE_AUTOMATION_CONFIG.get('adsXPath', '')
     Config.BOUNCE_RATE = NODE_AUTOMATION_CONFIG.get('bounceRate', 0)
     Config.ORGANIC = NODE_AUTOMATION_CONFIG.get('organic', 0)
+    Config.DIRECT_TRAFFIC = NODE_AUTOMATION_CONFIG.get('directTraffic', 30)
+    Config.SEARCH_ENGINE = NODE_AUTOMATION_CONFIG.get('searchEngine', 'Google')
+    Config.SEARCH_KEYWORDS = NODE_AUTOMATION_CONFIG.get('searchKeywords', '')
     Config.SOCIAL = NODE_AUTOMATION_CONFIG.get('social', {})
     Config.CUSTOM = NODE_AUTOMATION_CONFIG.get('custom', '')
     Config.DESKTOP_PERCENTAGE = NODE_AUTOMATION_CONFIG.get('desktopPercentage', 70)
@@ -196,13 +238,12 @@ if NODE_AUTOMATION_CONFIG:
     if Config.ORGANIC > 0:
         log_to_node(session_id, 'debug', f'Organic traffic: {Config.ORGANIC}%', 
                    Config.CAMPAIGN_ID, Config.USER_EMAIL)
-    
-    if Config.AD_SELECTORS:
-        log_to_node(session_id, 'debug', f'Custom ad selectors configured', 
-                   Config.CAMPAIGN_ID, Config.USER_EMAIL)
-    
-    if Config.ADS_XPATH:
-        log_to_node(session_id, 'debug', f'Custom ad XPath configured', 
+        if Config.SEARCH_KEYWORDS:
+            log_to_node(session_id, 'debug', f'Search engine: {Config.SEARCH_ENGINE}', 
+                       Config.CAMPAIGN_ID, Config.USER_EMAIL)
+            log_to_node(session_id, 'debug', f'Search keywords: {Config.SEARCH_KEYWORDS}', 
+                       Config.CAMPAIGN_ID, Config.USER_EMAIL)
+        log_to_node(session_id, 'debug', f'Direct traffic percentage: {Config.DIRECT_TRAFFIC}%', 
                    Config.CAMPAIGN_ID, Config.USER_EMAIL)
 
 try:
@@ -272,12 +313,67 @@ CLOSE_BUTTON_SELECTORS = [
     "button[type='button'][aria-label*='Close']", "i[class*='close']"
 ]
 
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+USER_AGENTS = {
+    "desktop": [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
+    ],
+    "mobile": [
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+        "Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1",
+        "Mozilla/5.0 (Linux; Android 14; Samsung SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36"
+    ]
+}
+
+MOBILE_VIEWPORTS = [
+    {"width": 375, "height": 812},  # iPhone X/11/12/13 Pro
+    {"width": 414, "height": 896},  # iPhone 11/XR
+    {"width": 390, "height": 844},  # iPhone 12/13
+    {"width": 393, "height": 851},  # Pixel 7
+    {"width": 360, "height": 740},  # Samsung Galaxy S20
+    {"width": 412, "height": 915}   # Samsung Galaxy S21
 ]
+
+DESKTOP_VIEWPORTS = [
+    {"width": 1366, "height": 768},  # Most common
+    {"width": 1920, "height": 1080}, # Full HD
+    {"width": 1440, "height": 900},  # MacBook Pro 15"
+    {"width": 1536, "height": 864},  # 1.5x scaling
+    {"width": 1280, "height": 720},  # HD
+    {"width": 1600, "height": 900}   # 16:9 widescreen
+]
+
+def get_device_config(device_type: str) -> dict:
+    """Get device-specific configuration"""
+    if device_type.lower() == 'mobile':
+        viewport = random.choice(MOBILE_VIEWPORTS)
+        user_agent = random.choice(USER_AGENTS["mobile"])
+        return {
+            "viewport": viewport,
+            "screen": {"width": viewport["width"], "height": viewport["height"]},
+            "user_agent": user_agent,
+            "is_mobile": True,
+            "has_touch": True,
+            "device_scale_factor": random.choice([1, 2, 3])
+        }
+    else:
+        viewport = random.choice(DESKTOP_VIEWPORTS)
+        user_agent = random.choice(USER_AGENTS["desktop"])
+        return {
+            "viewport": viewport,
+            "screen": {"width": viewport["width"], "height": viewport["height"]},
+            "user_agent": user_agent,
+            "is_mobile": False,
+            "has_touch": False,
+            "device_scale_factor": 1
+        }
 
 class RetryHandler:
     """Handles retry logic with exponential backoff"""
@@ -1373,7 +1469,7 @@ class IntelligentActionPlanner:
             "click_button": 0.3 if dom_info.get("buttons") else 0.0,
             "click_link": 0.2 if dom_info.get("links") else 0.0,
             "fill_form": 0.25 if dom_info.get("inputs") else 0.0,
-            "scroll": 0.4,
+            "scroll": 0.6,  # Increased weight for more frequent discrete scrolling
             "hover": 0.15,
             "navigate_back": 0.1,
             "idle": 0.2,
@@ -1438,12 +1534,41 @@ class IntelligentActionPlanner:
                 }
         
         elif action_type == "scroll":
+            # More realistic scroll behavior with varied patterns
+            scroll_patterns = [
+                {
+                    "direction": "down",
+                    "distance": random.randint(150, 400),
+                    "smooth": True,
+                    "pause_probability": 0.2
+                },
+                {
+                    "direction": "down", 
+                    "distance": random.randint(400, 800),
+                    "smooth": True,
+                    "pause_probability": 0.4
+                },
+                {
+                    "direction": "up",
+                    "distance": random.randint(100, 300),
+                    "smooth": True,
+                    "pause_probability": 0.3
+                },
+                {
+                    "direction": random.choice(["up", "down"]),
+                    "distance": random.randint(200, 600),
+                    "smooth": False,  # Quick scroll
+                    "pause_probability": 0.1
+                }
+            ]
+            
+            # Weight scroll patterns - favor downward scrolling
+            pattern_weights = [0.4, 0.3, 0.2, 0.1]
+            chosen_pattern = random.choices(scroll_patterns, weights=pattern_weights)[0]
+            
             return {
                 "type": "scroll",
-                "direction": random.choice(["up", "down"]),
-                "distance": random.randint(200, 800),
-                "smooth": True,
-                "pause_probability": 0.3
+                **chosen_pattern
             }
         
         elif action_type == "hover":
@@ -1923,6 +2048,9 @@ class BrowserManager:
 
             browser_mode = 'headful' if not self.headless else 'headless'
             log_to_node(self.session_id, 'info', f'Launching {browser_mode} {name} browser with Playwright built-in')
+            
+            # Log resource loading configuration
+            log_to_node(self.session_id, 'debug', f'Resource loading: CSS={Config.LOAD_CSS}, Fonts={Config.LOAD_FONTS}, Media={Config.LOAD_MEDIA}')
 
             # Launch browser WITHOUT executable_path to use Playwright's built-in browsers
             self.browser = await browser_type.launch(
@@ -1932,19 +2060,34 @@ class BrowserManager:
                 slow_mo=random.randint(50, 150) if not self.headless else 0
             )
 
-            # Context with user agent, viewport, etc.
-            self.context = await self.browser.new_context(
-                user_agent=random.choice(USER_AGENTS),
-                viewport={"width": 1366, "height": 768},
-                screen={"width": 1366, "height": 768},
-                locale="en-US",
-                timezone_id="America/New_York",
-                geolocation={"latitude": 40.7128, "longitude": -74.0060},
-                permissions=["geolocation"],
-                ignore_https_errors=True,
-                java_script_enabled=True,
-                accept_downloads=False
-            )
+            # Get device-specific configuration
+            device_config = get_device_config(Config.DEVICE)
+            
+            # Context with device-specific user agent, viewport, etc.
+            context_options = {
+                "user_agent": device_config["user_agent"],
+                "viewport": device_config["viewport"],
+                "screen": device_config["screen"],
+                "locale": "en-US",
+                "timezone_id": "America/New_York",
+                "geolocation": {"latitude": 40.7128, "longitude": -74.0060},
+                "permissions": ["geolocation"],
+                "ignore_https_errors": True,
+                "java_script_enabled": True,
+                "accept_downloads": False,
+                "is_mobile": device_config["is_mobile"],
+                "has_touch": device_config["has_touch"],
+                "device_scale_factor": device_config["device_scale_factor"]
+            }
+            
+            self.context = await self.browser.new_context(**context_options)
+            
+            log_to_node(self.session_id, 'debug', 
+                       f'Device emulation: {Config.DEVICE} - {device_config["viewport"]["width"]}x{device_config["viewport"]["height"]}', 
+                       Config.CAMPAIGN_ID, Config.USER_EMAIL)
+            log_to_node(self.session_id, 'debug', 
+                       f'User Agent: {device_config["user_agent"][:80]}...', 
+                       Config.CAMPAIGN_ID, Config.USER_EMAIL)
             
             # Inject cookies if provided
             if self.cookies:
@@ -1959,6 +2102,7 @@ class BrowserManager:
                     log_to_node(self.session_id, 'error', f'[ERROR] Failed to inject cookies: {e}')
             
             log_to_node(self.session_id, 'info', 'Browser initialized successfully')
+            log_to_node(self.session_id, 'info', f'Resource filtering applied: CSS loading {"enabled" if Config.LOAD_CSS else "disabled"}, Font loading {"enabled" if Config.LOAD_FONTS else "disabled"}, Media loading {"enabled" if Config.LOAD_MEDIA else "disabled"}')
             return True
         except Exception as e:
             log_to_node(self.session_id, 'error', f"Browser initialization failed: {e}")
@@ -2048,11 +2192,22 @@ class BrowserManager:
     async def _setup_monitoring(self, page: Page):
         """Set up request/response monitoring"""
         async def handle_request(route):
-            # Block unnecessary requests to improve performance
+            # Block unnecessary requests to improve performance based on configuration
             request = route.request
             resource_type = request.resource_type
-            if resource_type in ["font", "stylesheet", "media"]:
+            
+            # Determine which resources to block based on Config settings
+            blocked_types = []
+            if not Config.LOAD_FONTS:
+                blocked_types.append("font")
+            if not Config.LOAD_CSS:
+                blocked_types.append("stylesheet")
+            if not Config.LOAD_MEDIA:
+                blocked_types.append("media")
+            
+            if resource_type in blocked_types:
                 await route.abort()
+                log_to_node(self.session_id, 'debug', f"Blocked {resource_type}: {request.url}")
             else:
                 await route.continue_()
         
@@ -2091,8 +2246,6 @@ async def run_enhanced_traffic_agent(
     browser_name="chromium", 
     headless=True,
     session_id=None,
-    ad_selectors=None,
-    ads_xpath=None,
     bounce_rate=0,
     organic_percentage=0,
     social_settings=None,
@@ -2205,6 +2358,20 @@ async def run_enhanced_traffic_agent(
         "specificReferrer": None
     }
     
+    # Implement bounce rate logic (similar to Puppeteer)
+    original_duration = duration_seconds
+    if Config.BOUNCE_RATE > 0 and random.random() * 100 < Config.BOUNCE_RATE:
+        # Reduce duration for bounce (similar to Puppeteer: 20-50% of min duration)
+        min_duration = Config.VISIT_DURATION_MIN
+        duration_seconds = int(random.uniform(min_duration * 0.2, min_duration * 0.5))
+        session_stats["bounced"] = True
+        log_to_node(session_id, 'info', f'Bounce triggered, reducing session duration from {original_duration}s to {duration_seconds}s', 
+                   NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+        session_stats["duration_seconds"] = duration_seconds
+    
+    log_to_node(session_id, 'debug', f'Final session duration: {duration_seconds}s (bounced: {session_stats["bounced"]})', 
+               NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+    
     try:
         # Initialize browser
         if not await browser_manager.initialize_browser():
@@ -2219,13 +2386,116 @@ async def run_enhanced_traffic_agent(
         
         for url in valid_urls:
             try:
-                log_to_node(session_id, 'debug', f'Navigating to: {url}', 
-                           NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                # Generate traffic source and referrer (similar to Puppeteer logic)
+                referrer = ''
+                source = 'Direct'
+                specific_referrer = None
                 
-                page = await browser_manager.create_page(url)
+                rand = random.random() * 100
+                if rand < Config.ORGANIC:
+                    # Determine if this session should use search engine navigation
+                    use_search_engine = (
+                        Config.SEARCH_KEYWORDS and 
+                        Config.SEARCH_ENGINE and 
+                        not should_use_direct_traffic()
+                    )
+                    
+                    if use_search_engine:
+                        # First navigate to search engine
+                        search_url = get_search_url(Config.SEARCH_ENGINE, Config.SEARCH_KEYWORDS)
+                        if search_url:
+                            log_to_node(session_id, 'debug', f'Searching on {Config.SEARCH_ENGINE}: {Config.SEARCH_KEYWORDS}', 
+                                       NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                            
+                            # Create page and navigate to search engine first
+                            page = await browser_manager.create_page(search_url)
+                            if page:
+                                # Wait for search results to load
+                                await asyncio.sleep(random.uniform(2, 4))
+                                
+                                # Set referrer for the target navigation
+                                referrer = search_url
+                                source = 'Organic'
+                                specific_referrer = search_url
+                                
+                                # Now navigate to the target URL (simulating clicking a search result)
+                                log_to_node(session_id, 'debug', f'Navigating from search to target: {url}', 
+                                           NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                                await page.set_extra_http_headers({"referer": referrer})
+                                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                        else:
+                            # Fall back to Google referrer if search URL generation fails
+                            referrer = 'https://www.google.com/'
+                            source = 'Organic'
+                            specific_referrer = referrer
+                            log_to_node(session_id, 'debug', f'Using Google as referrer', 
+                                       NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                            page = await browser_manager.create_page(url)
+                            if page:
+                                await page.set_extra_http_headers({"referer": referrer})
+                    else:
+                        # Use Google as referrer for organic traffic without search keywords
+                        referrer = 'https://www.google.com/'
+                        source = 'Organic'
+                        specific_referrer = referrer
+                        log_to_node(session_id, 'debug', f'Using Google as referrer', 
+                                   NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                        page = await browser_manager.create_page(url)
+                        if page:
+                            await page.set_extra_http_headers({"referer": referrer})
+                            
+                elif Config.CUSTOM:
+                    # Custom referrer
+                    referrer = Config.CUSTOM
+                    specific_referrer = referrer
+                    custom_lower = referrer.lower()
+                    if any(engine in custom_lower for engine in ['google', 'bing', 'yahoo']):
+                        source = 'Organic'
+                    elif any(social in custom_lower for social in ['facebook', 'twitter', 'instagram', 'linkedin']):
+                        source = 'Social'
+                    else:
+                        source = 'Referral'
+                    log_to_node(session_id, 'debug', f'Using custom referrer: {referrer}', 
+                               NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                    page = await browser_manager.create_page(url)
+                    if page:
+                        await page.set_extra_http_headers({"referer": referrer})
+                        
+                elif Config.SOCIAL and any(Config.SOCIAL.values()):
+                    # Social media referrer
+                    social_refs = []
+                    if Config.SOCIAL.get('Facebook'): social_refs.append('https://facebook.com/')
+                    if Config.SOCIAL.get('Twitter'): social_refs.append('https://twitter.com/')
+                    if Config.SOCIAL.get('Instagram'): social_refs.append('https://instagram.com/')
+                    if Config.SOCIAL.get('LinkedIn'): social_refs.append('https://linkedin.com/')
+                    
+                    if social_refs:
+                        referrer = random.choice(social_refs)
+                        source = 'Social'
+                        specific_referrer = referrer
+                        log_to_node(session_id, 'debug', f'Using social referrer: {referrer}', 
+                                   NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                        page = await browser_manager.create_page(url)
+                        if page:
+                            await page.set_extra_http_headers({"referer": referrer})
+                    else:
+                        # Direct navigation if no social refs available
+                        log_to_node(session_id, 'debug', f'Direct navigation to: {url}', 
+                                   NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                        page = await browser_manager.create_page(url)
+                else:
+                    # Direct navigation (no referrer)
+                    log_to_node(session_id, 'debug', f'Direct navigation to: {url}', 
+                               NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                    page = await browser_manager.create_page(url)
+                
+                # Update session stats with source information
+                session_stats["source"] = source
+                session_stats["specificReferrer"] = specific_referrer
                 if page:
                     log_to_node(session_id, 'info', f'Page loaded: {url}', 
                                NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+                    session_stats["visited"] = True
                     
                     ad_handler = ComprehensiveAdHandler(page, ad_reporter, session_id)
                     ad_handler.session_duration = duration_seconds  # Set session duration
@@ -2256,6 +2526,9 @@ async def run_enhanced_traffic_agent(
         # Main interaction loop
         start_time = time.time()
         current_page_index = 0
+        
+        log_to_node(session_id, 'debug', f'Starting main interaction loop for {duration_seconds}s', 
+                   NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
         
         while time.time() - start_time < duration_seconds:
             try:
@@ -2316,6 +2589,13 @@ async def run_enhanced_traffic_agent(
                 log_to_node(session_id, 'error', error_msg)
                 session_stats["errors"].append(error_msg)
                 await asyncio.sleep(1.0)  # Brief pause before continuing
+        
+        log_to_node(session_id, 'debug', f'Session interaction completed after {time.time() - start_time:.1f}s', 
+                   NODE_AUTOMATION_CONFIG.get('campaignId'), NODE_AUTOMATION_CONFIG.get('userEmail'))
+        
+        # Mark session as completed if we reached this point without major errors
+        if session_stats["visited"] and not session_stats["bounced"]:
+            session_stats["completed"] = True
         
         # Final stats
         session_stats["endTime"] = datetime.now()
@@ -2542,8 +2822,6 @@ if __name__ == "__main__":
         session_id = config.get("sessionId")
         
         # Additional campaign parameters
-        ad_selectors = config.get("adSelectors", "")
-        ads_xpath = config.get("adsXPath", "")
         bounce_rate = config.get("bounceRate", 0)
         organic_percentage = config.get("organic", 0)
         social_settings = config.get("social", {})
@@ -2568,8 +2846,6 @@ if __name__ == "__main__":
                     browser_name=browser_name,
                     headless=headless,
                     session_id=session_id,
-                    ad_selectors=ad_selectors,
-                    ads_xpath=ads_xpath,
                     bounce_rate=bounce_rate,
                     organic_percentage=organic_percentage,
                     social_settings=social_settings,

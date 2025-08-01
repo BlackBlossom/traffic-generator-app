@@ -49,19 +49,60 @@ class PythonTrafficOrchestrator {
     throw new Error('Python not found. Please install Python 3.8+ and ensure it\'s in your PATH.');
   }
 
-  // Proxy selection function matching Node.js version
-  selectProxy(campaignProxies) {
+  // Country code mapping for DataImpulse proxy format
+  // Maps country names to DataImpulse proxy country codes for geo-targeting
+  // Example: 'United States' -> 'us' -> proxy username becomes 'username__cr.us'
+  // For 'Global' geo-targeting, no country code suffix is added to the proxy username
+  getCountryCodeForGeo(geo) {
+    const countryCodeMap = {
+      'United States': 'us',
+      'Germany': 'de',
+      'France': 'fr',
+      'United Kingdom': 'gb',
+      'Canada': 'ca',
+      'India': 'in',
+      'Brazil': 'br',
+      'Russia': 'ru',
+      'Australia': 'au',
+      'Japan': 'jp',
+      'Netherlands': 'nl',
+      'Singapore': 'sg',
+      'South Korea': 'kr',
+      'Italy': 'it',
+      'Spain': 'es',
+      'Turkey': 'tr',
+      'Mexico': 'mx',
+      'Indonesia': 'id',
+      'Poland': 'pl',
+      'Vietnam': 'vn',
+    };
+    
+    return countryCodeMap[geo] || null;
+  }
+
+  // Proxy selection function with geo-targeting support
+  selectProxy(campaignProxies, geo = null) {
     const PROXY_HOST = process.env.PROXY_HOST || 'gw.dataimpulse.com';
     const PROXY_PORT = process.env.PROXY_PORT || '823';
-    const PROXY_USER = process.env.PROXY_USER || 'b0ac12156e5e63a82bbe__cr.au';
+    const PROXY_USER_BASE = process.env.PROXY_USER || 'b0ac12156e5e63a82bbe';
     const PROXY_PASS = process.env.PROXY_PASS || 'c16003108e64d017';
+    
+    // Configure proxy username based on geo-targeting
+    let proxyUser = PROXY_USER_BASE;
+    if (geo && geo !== 'Global') {
+      const countryCode = this.getCountryCodeForGeo(geo);
+      if (countryCode) {
+        proxyUser = `${PROXY_USER_BASE}__cr.${countryCode}`;
+      }
+    }
+    
     const DEFAULT_PROXY = `${PROXY_HOST}:${PROXY_PORT}`;
 
     if (!campaignProxies || !Array.isArray(campaignProxies) || campaignProxies.length === 0) {
       return {
         host: PROXY_HOST,
         port: PROXY_PORT,
-        username: PROXY_USER,
+        username: proxyUser,
         password: PROXY_PASS,
         proxyString: DEFAULT_PROXY
       };
@@ -115,7 +156,7 @@ class PythonTrafficOrchestrator {
   async createPythonConfig(sessionId, campaign, sessionConfig) {
     const configPath = path.join(os.tmpdir(), `traffic_config_${sessionId}.json`);
     
-    const selectedProxy = this.selectProxy(campaign.proxies);
+    const selectedProxy = this.selectProxy(campaign.proxies, campaign.geo);
     const trafficSource = this.generateTrafficSource(campaign);
     
     const visitDurationMin = campaign.visitDurationMin || 30;
@@ -136,10 +177,11 @@ class PythonTrafficOrchestrator {
       cookies: campaign.cookies || [],
       headless: !shouldBeHeadful, // Use headful percentage logic
       browser: sessionConfig.browser || 'chromium',
-      adSelectors: campaign.adSelectors || '',
-      adsXPath: campaign.adsXPath || '',
       bounceRate: campaign.bounceRate || 0,
       organic: campaign.organic || 0,
+      directTraffic: campaign.directTraffic || 30,
+      searchEngine: campaign.searchEngine || 'Google',
+      searchKeywords: campaign.searchKeywords || '',
       social: campaign.social || {},
       custom: campaign.custom || '',
       desktopPercentage: campaign.desktopPercentage || 70,
@@ -161,18 +203,28 @@ class PythonTrafficOrchestrator {
     return { configPath, config };
   }
 
-  selectProxy(proxies) {
+  selectProxy(proxies, geo = null) {
     const PROXY_HOST = process.env.PROXY_HOST || 'gw.dataimpulse.com';
     const PROXY_PORT = process.env.PROXY_PORT || '823';
-    const PROXY_USER = process.env.PROXY_USER || 'b0ac12156e5e63a82bbe__cr.au';
+    const PROXY_USER_BASE = process.env.PROXY_USER || 'b0ac12156e5e63a82bbe';
     const PROXY_PASS = process.env.PROXY_PASS || 'c16003108e64d017';
+    
+    // Configure proxy username based on geo-targeting
+    let proxyUser = PROXY_USER_BASE;
+    if (geo && geo !== 'Global') {
+      const countryCode = this.getCountryCodeForGeo(geo);
+      if (countryCode) {
+        proxyUser = `${PROXY_USER_BASE}__cr.${countryCode}`;
+      }
+    }
+    
     const DEFAULT_PROXY = `${PROXY_HOST}:${PROXY_PORT}`;
 
     if (!proxies || !Array.isArray(proxies) || proxies.length === 0) {
       return {
         host: PROXY_HOST,
         port: PROXY_PORT,
-        username: PROXY_USER,
+        username: proxyUser,
         password: PROXY_PASS,
         proxyString: DEFAULT_PROXY
       };
@@ -407,18 +459,10 @@ async function performClicks(
   const clickInterval = visitDurationMs / numClicks;
   const parsedOriginal = url.parse(originalUrl);
 
-  // 1. Parse ad selectors
-  let adSelectors = [];
-  if (adConfig.adSelectors && adConfig.adSelectors.trim()) {
-    adSelectors = adConfig.adSelectors.split(',').map(s => s.trim()).filter(Boolean);
-    logToIPC(sessionId, 'debug', `Custom ad selectors: ${adSelectors.join(', ')}`, campaignId, userEmail);
-  } else {
-    adSelectors = ['.GoogleActiveViewElement', '.ad-class', '#ad-iframe', '.rgtAdSection'];
-    logToIPC(sessionId, 'debug', `Default ad selectors: ${adSelectors.join(', ')}`, campaignId, userEmail);
-  }
+  // 1. Gather all matching elements: XPath, CSS, then random, tagging each for log/analysis
+  let clickCandidates = [];
 
-  // 2. Parse XPath expressions
-  let adsXPaths = [];
+  // Gather XPath elements with robust error handling
   if (adConfig.adsXPath && adConfig.adsXPath.trim()) {
     const xpathString = adConfig.adsXPath.trim();
     const xpaths = [];
@@ -447,9 +491,6 @@ async function performClicks(
     logToIPC(sessionId, 'debug', `Custom XPath expressions: ${adsXPaths.join(' | ')}`, campaignId, userEmail);
   }
 
-  // 3. Gather all matching elements: XPath, CSS, then random, tagging each for log/analysis
-  let clickCandidates = [];
-
   // Gather XPath elements with robust error handling
   if (adsXPaths.length > 0) {
     for (const xpath of adsXPaths) {
@@ -470,28 +511,6 @@ async function performClicks(
           break; // Stop gathering if context is lost
         }
         logToIPC(sessionId, 'error', `✗ XPath error (${xpath}): ${err.message}`, campaignId, userEmail);
-      }
-    }
-  }
-
-  // Gather CSS selector elements with robust error handling
-  if (adSelectors.length > 0 && !page.isClosed()) {
-    for (const sel of adSelectors) {
-      try {
-        if (page.isClosed()) {
-          logToIPC(sessionId, 'warn', 'Page closed during CSS element gathering', campaignId, userEmail);
-          break;
-        }
-        const elements = await page.$$(sel);
-        elements.forEach(el => clickCandidates.push({ el, type: 'css', selector: sel }));
-        if (elements.length)
-          logToIPC(sessionId, 'debug', `✓ CSS selector ${sel} found ${elements.length} elements`, campaignId, userEmail);
-      } catch (error) {
-        if (error.message && (error.message.includes('context') || error.message.includes('Node with given id'))) {
-          logToIPC(sessionId, 'warn', `✗ CSS context lost (${sel}): Navigation likely occurred`, campaignId, userEmail);
-          break;
-        }
-        logToIPC(sessionId, 'error', `✗ CSS ad selector error (${sel}): ${error.message}`, campaignId, userEmail);
       }
     }
   }
@@ -604,6 +623,76 @@ async function performClicks(
   }
 }
 
+// Country code mapping for DataImpulse proxy format (standalone function)
+// Maps country names to DataImpulse proxy country codes for geo-targeting
+// Example: 'United States' -> 'us' -> proxy username becomes 'username__cr.us'
+// For 'Global' geo-targeting, no country code suffix is added to the proxy username
+function getCountryCodeForGeo(geo) {
+  const countryCodeMap = {
+    'United States': 'us',
+    'Germany': 'de',
+    'France': 'fr',
+    'United Kingdom': 'gb',
+    'Canada': 'ca',
+    'India': 'in',
+    'Brazil': 'br',
+    'Russia': 'ru',
+    'Australia': 'au',
+    'Japan': 'jp',
+    'Netherlands': 'nl',
+    'Singapore': 'sg',
+    'South Korea': 'kr',
+    'Italy': 'it',
+    'Spain': 'es',
+    'Turkey': 'tr',
+    'Mexico': 'mx',
+    'Indonesia': 'id',
+    'Poland': 'pl',
+    'Vietnam': 'vn',
+  };
+  
+  return countryCodeMap[geo] || null;
+}
+
+// Standalone proxy selection function with geo-targeting support
+function selectProxy(campaignProxies, geo = null) {
+  const PROXY_HOST = process.env.PROXY_HOST || 'gw.dataimpulse.com';
+  const PROXY_PORT = process.env.PROXY_PORT || '823';
+  const PROXY_USER_BASE = process.env.PROXY_USER || 'b0ac12156e5e63a82bbe';
+  const PROXY_PASS = process.env.PROXY_PASS || 'c16003108e64d017';
+  
+  // Configure proxy username based on geo-targeting
+  let proxyUser = PROXY_USER_BASE;
+  if (geo && geo !== 'Global') {
+    const countryCode = getCountryCodeForGeo(geo);
+    if (countryCode) {
+      proxyUser = `${PROXY_USER_BASE}__cr.${countryCode}`;
+    }
+  }
+  
+  const DEFAULT_PROXY = `${PROXY_HOST}:${PROXY_PORT}`;
+
+  if (!campaignProxies || !Array.isArray(campaignProxies) || campaignProxies.length === 0) {
+    return {
+      host: PROXY_HOST,
+      port: PROXY_PORT,
+      username: proxyUser,
+      password: PROXY_PASS,
+      proxyString: DEFAULT_PROXY
+    };
+  }
+  
+  // Select random proxy from campaign proxies
+  const randomProxy = campaignProxies[Math.floor(Math.random() * campaignProxies.length)];
+  return {
+    host: randomProxy.host,
+    port: randomProxy.port,
+    username: randomProxy.username || '',
+    password: randomProxy.password || '',
+    proxyString: `${randomProxy.host}:${randomProxy.port}`
+  };
+}
+
 async function launchSession(params, sessionId, campaignId = null, userEmail = null) {
   let browser = null;
   const desktopPercentage = params.desktopPercentage !== undefined ? params.desktopPercentage : 70;
@@ -611,7 +700,7 @@ async function launchSession(params, sessionId, campaignId = null, userEmail = n
   const deviceType = shouldBeDesktop ? 'Desktop' : 'Mobile';
 
   // Select proxy for this session
-  const selectedProxy = selectProxy(params.proxies);
+  const selectedProxy = selectProxy(params.proxies, params.geo);
 
   const sessionData = {
     sessionId,
@@ -786,10 +875,6 @@ async function launchSession(params, sessionId, campaignId = null, userEmail = n
       logToIPC(sessionId, 'info', `Bounce triggered, will leave early.`, campaignId, userEmail);
     }
 
-    const adConfig = {
-      adSelectors: params.adSelectors,
-      adsXPath: params.adsXPath
-    };
     const sessionSeconds = Math.round(duration / 1000);
     const minClicks = Math.max(1, Math.floor(sessionSeconds / 20));
     const maxClicks = Math.max(minClicks, Math.floor(sessionSeconds / 10));

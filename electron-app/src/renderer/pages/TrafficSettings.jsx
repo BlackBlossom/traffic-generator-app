@@ -566,7 +566,7 @@ function TimeListbox({ label, value, onChange, options, isInvalid = false }) {
   )
 }
 
-function GeoSelect({ label, value, onChange, tooltip }) {
+function SelectBox({ label, value, onChange, options, placeholder, tooltip }) {
   return (
     <div className="flex flex-col">
       {label && (
@@ -593,7 +593,7 @@ function GeoSelect({ label, value, onChange, tooltip }) {
                        text-[#404e7c] dark:text-[#d0d2e5] flex items-center justify-between
                        focus:outline-none focus:ring-2 focus:ring-[#86cb92] transition"
           >
-            <span>{value || 'Select country...'}</span>
+            <span>{value || placeholder || 'Select option...'}</span>
             <ChevronDownIcon className="w-4 h-4 text-[#404e7c] dark:text-[#d0d2e5]" />
           </Listbox.Button>
 
@@ -611,10 +611,10 @@ function GeoSelect({ label, value, onChange, tooltip }) {
                          border border-[#598185]/40 dark:border-[#86cb92]/40 rounded-lg 
                          max-h-48 overflow-y-auto shadow-lg focus:outline-none"
             >
-              {COUNTRIES.map((country) => (
+              {options.map((option) => (
                 <Listbox.Option
-                  key={country}
-                  value={country}
+                  key={option}
+                  value={option}
                   className={({ active, selected }) =>
                     cn(
                       'cursor-pointer select-none px-3 py-2 text-sm',
@@ -627,7 +627,7 @@ function GeoSelect({ label, value, onChange, tooltip }) {
                     )
                   }
                 >
-                  {country}
+                  {option}
                 </Listbox.Option>
               ))}
             </Listbox.Options>
@@ -756,6 +756,9 @@ const INITIAL_DATA = {
   concurrent: 5,
   scrolling: true,
   organic: 60,
+  directTraffic: 30, // Percentage of organic traffic that should be direct (no referrer)
+  searchEngine: 'Google', // Search engine to use for organic searches
+  searchKeywords: '', // Keywords to search for
   headfulPercentage: 50, // Percentage of sessions that should run with headful browser (0-100)
   desktopPercentage: 70, // Percentage of sessions that should use desktop devices (0-100)
   totalSessions: '', // Total number of sessions to generate (empty = unlimited)
@@ -768,52 +771,72 @@ const INITIAL_DATA = {
   custom: '',
   geo: 'Global',
   notes: '',
-  adSelectors: '', // Comma-separated list of CSS selectors for ads to be clicked
-  adsXPath: '', // Comma-separated list of X-path expressions for Google Ads containers
   cookies: [], // Array of cookies to be set during sessions
   proxies: [], // Array of proxy servers to use
 }
 
-// Country list for geo targeting
+// Country list for geo targeting with DataImpulse support
 const COUNTRIES = [
   'Global',
   'United States',
-  'United Kingdom',
-  'Canada',
-  'Australia',
   'Germany',
   'France',
-  'Italy',
-  'Spain',
-  'Netherlands',
-  'Sweden',
-  'Norway',
-  'Denmark',
-  'Finland',
-  'Switzerland',
-  'Austria',
-  'Belgium',
-  'Ireland',
-  'Portugal',
-  'Japan',
-  'South Korea',
-  'Singapore',
-  'Hong Kong',
+  'United Kingdom',
+  'Canada',
   'India',
   'Brazil',
-  'Mexico',
-  'Argentina',
-  'Chile',
   'Russia',
-  'Poland',
-  'Czech Republic',
-  'Hungary',
-  'Greece',
+  'Australia',
+  'Japan',
+  'Netherlands',
+  'Singapore',
+  'South Korea',
+  'Italy',
+  'Spain',
   'Turkey',
-  'Israel',
-  'South Africa',
-  'New Zealand',
+  'Mexico',
+  'Indonesia',
+  'Poland',
+  'Vietnam',
 ]
+
+// Country code mapping for DataImpulse proxy format
+const COUNTRY_CODE_MAP = {
+  'United States': 'us',
+  'Germany': 'de',
+  'France': 'fr',
+  'United Kingdom': 'gb',
+  'Canada': 'ca',
+  'India': 'in',
+  'Brazil': 'br',
+  'Russia': 'ru',
+  'Australia': 'au',
+  'Japan': 'jp',
+  'Netherlands': 'nl',
+  'Singapore': 'sg',
+  'South Korea': 'kr',
+  'Italy': 'it',
+  'Spain': 'es',
+  'Turkey': 'tr',
+  'Mexico': 'mx',
+  'Indonesia': 'id',
+  'Poland': 'pl',
+  'Vietnam': 'vn',
+}
+
+const SEARCH_ENGINES = [
+  'Google',
+  'Yahoo',
+  'Bing',
+  'DuckDuckGo',
+  'Baidu',
+  'Yandex',
+  'Ask',
+  'Ecosia',
+]
+
+// Export country code mapping for potential use by other components
+export { COUNTRY_CODE_MAP }
 
 export default function TrafficSettings() {
   const location = useLocation()
@@ -1346,8 +1369,6 @@ export default function TrafficSettings() {
                       {c.endDate && c.endDate !== c.startDate ? ` to ${c.endDate}` : ''}
                     </span>
                   )}
-                  {c.adSelectors && <span>CSS Ads: {c.adSelectors.split(',').length} selectors</span>}
-                  {c.adsXPath && <span>XPath: {c.adsXPath.split(',').length} expressions</span>}
                 </div>
                 {c.notes && <div className="italic text-xs text-[#598185] dark:text-[#86cb92] mt-2 bg-[#f8f9ff] dark:bg-[#1c1b2f]/50 p-2 rounded break-words">{c.notes}</div>}
               </motion.li>
@@ -1513,13 +1534,13 @@ export default function TrafficSettings() {
           </AnimatedField>
 
           <AnimatedField index={8}>
-            <Input
-              label="Organic Traffic (%)"
-              name="organic"
-              type="number"
-              value={data.organic}
-              onChange={handleChange}
-              tooltip="Percentage of sessions that will be organic (not from referral sources). The proportion (%) of traffic considered organic (i.e., unpaid, from search engines). Balances between organic and paid/social sources to mimic real-world traffic composition."
+            <SelectBox
+              label="Geographic Targeting"
+              value={data.geo}
+              onChange={(value) => setData((d) => ({ ...d, geo: value }))}
+              options={COUNTRIES}
+              placeholder="Select location..."
+              tooltip="Select the geographic location for traffic simulation. 'Global' targets all regions, while specific countries focus traffic from that location."
             />
           </AnimatedField>
 
@@ -1534,37 +1555,49 @@ export default function TrafficSettings() {
           </AnimatedField>
 
           <AnimatedField index={10}>
-            <GeoSelect
-              label="Geographic Targeting"
-              value={data.geo}
-              onChange={(value) => setData((d) => ({ ...d, geo: value }))}
-              tooltip="Select the geographic location for traffic simulation. 'Global' targets all regions, while specific countries focus traffic from that location."
+            <Input
+              label="Organic Traffic (%)"
+              name="organic"
+              type="number"
+              value={data.organic}
+              onChange={handleChange}
+              tooltip="Percentage of sessions that will be organic (not from referral sources). The proportion (%) of traffic considered organic (i.e., unpaid, from search engines). Balances between organic and paid/social sources to mimic real-world traffic composition."
             />
           </AnimatedField>
 
           <AnimatedField index={11}>
-            <Input
-              label="CSS Ad Selectors"
-              name="adSelectors"
-              placeholder=".GoogleActiveViewElement, .ad-class, #ad-iframe"
-              value={data.adSelectors}
-              onChange={handleChange}
-              tooltip="Comma-separated list of CSS selectors for ads to be clicked. Leave empty for default selectors."
+            <Slider
+              label="Direct Traffic (%)"
+              value={data.directTraffic}
+              onChange={handleSliderChange}
+              name="directTraffic"
+              tooltip="Percentage of organic traffic that should be direct (no referrer). 0% = all traffic comes from search engines, 100% = all traffic is direct navigation."
             />
           </AnimatedField>
 
           <AnimatedField index={12}>
-            <Input
-              label="Google Ads Container X-Paths"
-              name="adsXPath"
-              placeholder="//div[@data-google-av-cxn], //ins[@class='adsbygoogle'], //div[contains(@class, 'GoogleActiveViewElement')]"
-              value={data.adsXPath}
-              onChange={handleChange}
-              tooltip="Comma-separated list of X-Path expressions for Google Ads container elements. Examples: //div[@data-google-av-cxn], //ins[@class='adsbygoogle'], //div[contains(@class, 'GoogleActiveViewElement')]. Only works in headful mode."
+            <SelectBox
+              label="Search Engine"
+              value={data.searchEngine}
+              onChange={(value) => setData((d) => ({ ...d, searchEngine: value }))}
+              options={SEARCH_ENGINES}
+              placeholder="Select search engine..."
+              tooltip="Choose the search engine to use for organic traffic simulation. Keywords will be searched on this engine before navigating to your target URL."
             />
           </AnimatedField>
 
           <AnimatedField index={13}>
+            <Input
+              label="Search Keywords"
+              name="searchKeywords"
+              placeholder="e.g., web design, digital marketing, SEO services"
+              value={data.searchKeywords}
+              onChange={handleChange}
+              tooltip="Enter keywords related to your website. These will be searched on the selected search engine before navigating to your target URL to simulate organic traffic."
+            />
+          </AnimatedField>
+
+          <AnimatedField index={14}>
             <Input
               label="Campaign Notes"
               name="notes"
