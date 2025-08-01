@@ -12,7 +12,7 @@ export default defineConfig({
     tailwindcss()
   ],
   build: {
-    outDir: path.resolve(__dirname, '.vite/build/renderer'),
+    outDir: path.resolve(__dirname, 'dist/renderer'),
     emptyOutDir: false,
     rollupOptions: {
       input: path.resolve(__dirname, 'src/renderer/index.html'),

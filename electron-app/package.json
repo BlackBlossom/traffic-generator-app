@@ -3,12 +3,17 @@
   "productName": "RST - Advance Website Seo Tool",
   "version": "1.0.0",
   "description": "RST - Advance Website Seo Tool - Ultimate SEO and Traffic Analysis Platform",
-  "main": ".vite/build/main.js",
+  "main": "dist/main.js",
   "scripts": {
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "publish": "electron-forge publish",
+    "start": "npm run build && electron .",
+    "dev": "vite build --config vite.main.config.mjs && vite build --config vite.preload.config.mjs && vite --config vite.renderer.config.mjs",
+    "build": "npm run build:main && npm run build:preload && npm run build:renderer",
+    "build:main": "vite build --config vite.main.config.mjs",
+    "build:preload": "vite build --config vite.preload.config.mjs",
+    "build:renderer": "vite build --config vite.renderer.config.mjs",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "pack": "npm run build && electron-builder --dir",
     "lint": "echo \"No linting configured\""
   },
   "keywords": [],
@@ -20,18 +25,10 @@
   "devDependencies": {
     "@babel/core": "^7.27.7",
     "@babel/preset-react": "^7.27.1",
-    "@electron-forge/cli": "^7.8.1",
-    "@electron-forge/maker-deb": "^7.8.1",
-    "@electron-forge/maker-rpm": "^7.8.1",
-    "@electron-forge/maker-squirrel": "^7.8.1",
-    "@electron-forge/maker-zip": "^7.8.1",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
-    "@electron-forge/plugin-fuses": "^7.8.1",
-    "@electron-forge/plugin-vite": "^7.8.1",
-    "@electron/fuses": "^1.8.0",
     "@vitejs/plugin-react": "^4.6.0",
     "babel-loader": "^10.0.0",
     "electron": "37.1.0",
+    "electron-builder": "^26.0.12",
     "vite": "^7.0.0"
   },
   "dependencies": {
@@ -64,5 +61,50 @@
     "tailwindcss": "^4.1.11",
     "user-agents": "^1.1.614",
     "uuid": "^11.1.0"
+  },
+  "build": {
+    "appId": "com.blackblossom.rst-seo-tool",
+    "productName": "RST - Advance Website Seo Tool",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "public/",
+        "to": "public/",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/app-icon.ico",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RST SEO Tool"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    },
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false
   }
 }

@@ -9,7 +9,7 @@ function copyMainFolderPlugin() {
     name: 'copy-main-folder',
     writeBundle() {
       const srcMainDir = path.resolve(__dirname, 'src/main');
-      const destMainDir = path.resolve(__dirname, '.vite/build/main');
+      const destMainDir = path.resolve(__dirname, 'dist/main');
       
       function copyDirectory(src, dest) {
         if (!statSync(src).isDirectory()) return;
@@ -42,7 +42,7 @@ export default defineConfig({
       entry: path.resolve(__dirname, 'src/main.js'),
       formats: ['cjs'],
     },
-    outDir: path.resolve(__dirname, '.vite/build'),
+    outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: false,  // keep preload & renderer outputs
     rollupOptions: {
       output: { 

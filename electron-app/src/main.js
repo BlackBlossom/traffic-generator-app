@@ -1,5 +1,6 @@
 const { app, ipcMain, BrowserWindow } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 
 // Import main services and IPC handlers
 const mainService = require('./main/mainService');
@@ -84,20 +85,22 @@ function createWindow() {
   //   mainWindow.setMenuBarVisibility(false); // Hide the menu bar in production
   // }
 
+  // Check if built renderer files exist, prioritize them over dev server
+  const rendererPath = path.join(__dirname, 'renderer', 'index.html');
+  const hasBuiltFiles = fs.existsSync(rendererPath);
 
-  if (!app.isPackaged) {
+  if (hasBuiltFiles || app.isPackaged) {
+    // ─── PRODUCTION ─────────────────────────────────
+    // Load the built renderer files
+    console.log('Loading built renderer from:', rendererPath);
+    mainWindow.loadFile(rendererPath);
+  } else {
     // ─── DEVELOPMENT ────────────────────────────────
     // Vite dev server is running on port 5173 by default
+    console.log('Loading development server at http://localhost:5173');
     mainWindow.loadURL('http://localhost:5173');
-  } else {
-    // ─── PRODUCTION ─────────────────────────────────
-    // After packaging, your renderer build lives under:
-    //   <project>/electron-app/.vite/build/renderer/index.html
-    mainWindow.loadFile(
-      path.join(__dirname, 'renderer', 'index.html')
-    );
   }
-  console.log(path.join(__dirname, 'renderer', 'index.html'));
+  console.log('Renderer path:', rendererPath);
 
   // Open the DevTools.
   if (process.env.NODE_ENV === 'development') {

@@ -8,7 +8,7 @@ export default defineConfig({
       entry: path.resolve(__dirname, 'src/preload.js'),
       formats: ['cjs'],
     },
-    outDir: path.resolve(__dirname, '.vite/build'),
+    outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: false,
     rollupOptions: {
       output: { entryFileNames: 'preload.js' },
