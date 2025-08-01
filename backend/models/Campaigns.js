@@ -121,6 +121,22 @@ const CampaignSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  directTraffic: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 30
+  },
+  searchEngine: {
+    type: String,
+    default: 'Google',
+    trim: true
+  },
+  searchKeywords: {
+    type: String,
+    default: '',
+    trim: true
+  },
   headfulPercentage: {
     type: Number,
     required: true,
@@ -194,14 +210,6 @@ const CampaignSchema = new mongoose.Schema({
     default: 'Desktop'
   },
   notes: {
-    type: String,
-    default: ''
-  },
-  adSelectors: {
-    type: String,
-    default: ''
-  },
-  adsXPath: {
     type: String,
     default: ''
   },
